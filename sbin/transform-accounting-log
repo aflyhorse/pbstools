@@ -11,7 +11,9 @@ import sys
 
 
 def usage():
-    sys.stderr.write("Usage:  transform-accounting-log [options] <originallogfile> <xformedlogfile>\n")
+    sys.stderr.write(
+        "Usage:  transform-accounting-log [options] <originallogfile> <xformedlogfile>\n"
+    )
     sys.exit(1)
 
 
@@ -34,79 +36,83 @@ syslog = False
 
 # command line processing
 try:
-    opts, args = getopt.getopt(sys.argv[1:],
-                                   "A:DG:H:JLN:RU:Wdj:lt:",
-                                   ["account-map-file=",
-                                    "debug",
-                                    "deidentify",
-                                    "group-map-file=",
-                                    "host-transform=",
-                                    "jobid-adjust=",
-                                    "jobid-autorenumber",
-                                    "no-syslog",
-                                    "node-transform=",
-                                    "read-map-files",
-                                    "stderr",
-                                    "syslog",
-                                    "timestamp-adjust=",
-                                    "user-map-file=",
-                                    "write-map-files"])
+    opts, args = getopt.getopt(
+        sys.argv[1:],
+        "A:DG:H:JLN:RU:Wdj:lt:",
+        [
+            "account-map-file=",
+            "debug",
+            "deidentify",
+            "group-map-file=",
+            "host-transform=",
+            "jobid-adjust=",
+            "jobid-autorenumber",
+            "no-syslog",
+            "node-transform=",
+            "read-map-files",
+            "stderr",
+            "syslog",
+            "timestamp-adjust=",
+            "user-map-file=",
+            "write-map-files",
+        ],
+    )
 except getopt.GetoptError as err:
-    sys.stderr.write(str(err)+"\n")
+    sys.stderr.write(str(err) + "\n")
     usage()
 for opt in opts:
-    if ( opt[0] in ["-A","--account-map-file"] ):
+    if opt[0] in ["-A", "--account-map-file"]:
         acctmapfile = opt[1]
-    elif ( opt[0] in ["-D","--deidentify"] ):
+    elif opt[0] in ["-D", "--deidentify"]:
         deidentify = True
-    elif ( opt[0] in ["-G","--group-map-file"] ):
+    elif opt[0] in ["-G", "--group-map-file"]:
         groupmapfile = opt[1]
-    elif ( opt[0] in ["-H","--host-transform"] ):
+    elif opt[0] in ["-H", "--host-transform"]:
         # expect a sed style "s/old/new/" string
         elt = opt[1].split("/")
-        hostxform = [elt[1],elt[2]]
-    elif ( opt[0] in ["-J","--jobid-autorenumber"] ):
+        hostxform = [elt[1], elt[2]]
+    elif opt[0] in ["-J", "--jobid-autorenumber"]:
         autorenumber = True
-    elif ( opt[0] in ["-L","--syslog"] ):
+    elif opt[0] in ["-L", "--syslog"]:
         syslog = True
-    elif ( opt[0] in ["-N","--node-transform"] ):
+    elif opt[0] in ["-N", "--node-transform"]:
         # expect a sed style "s/old/new/" string
         elt = opt[1].split("/")
-        nodexform = [elt[1],elt[2]]
-    elif ( opt[0] in ["-R","--read-map-files"] ):
+        nodexform = [elt[1], elt[2]]
+    elif opt[0] in ["-R", "--read-map-files"]:
         readmaps = True
-    elif ( opt[0] in ["-U","--user-map-file"] ):
+    elif opt[0] in ["-U", "--user-map-file"]:
         usermapfile = opt[1]
-    elif ( opt[0] in ["-W","--write-map-files"] ):
+    elif opt[0] in ["-W", "--write-map-files"]:
         writemaps = True
-    elif ( opt[0] in ["-d","--debug"] ):
+    elif opt[0] in ["-d", "--debug"]:
         debug = True
-    elif ( opt[0] in ["-j","--jobid-adjust"] ):
+    elif opt[0] in ["-j", "--jobid-adjust"]:
         jobiddelta = int(opt[1])
-    elif ( opt[0] in ["-l","--no-syslog","--stderr"] ):
+    elif opt[0] in ["-l", "--no-syslog", "--stderr"]:
         syslog = False
-    elif ( opt[0] in ["-t","--timestamp-adjust"] ):
+    elif opt[0] in ["-t", "--timestamp-adjust"]:
         tsdelta = int(opt[1])
 
-if ( len(args)!=2 ):
+if len(args) != 2:
     usage()
 
 # configure logging
 logger = pbsacct.getLogger()
 
-if ( debug ):
+if debug:
     logger.setLevel(logging.INFO)
 else:
     logger.setLevel(logging.WARNING)
 lh = logging.StreamHandler(sys.stderr)
-if ( syslog ):
-    lh = logging.handlers.SysLogHandler(address='/dev/log')
-lh.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s'))
+if syslog:
+    lh = logging.handlers.SysLogHandler(address="/dev/log")
+lh.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s"))
 logger.addHandler(lh)
 
 # Read raw data from original file
 original = args[0]
-if ( not os.path.exists(original) ):
+if not os.path.exists(original):
     raise IOError("%s:  File not found" % original)
 rawdata = pbsacct.raw_data_from_file(original)
 
@@ -116,176 +122,183 @@ grouplist = {}
 acctlist = {}
 
 # Read maps, if requested
-if ( readmaps ):
-    if ( usermapfile is not None ):
-        if ( os.path.exists(usermapfile) ):
-            if ( debug ):
+if readmaps:
+    if usermapfile is not None:
+        if os.path.exists(usermapfile):
+            if debug:
                 logger.info("Reading usermap file %s" % usermapfile)
             usermap = open(usermapfile)
             for line in usermap.readlines():
-                if ( not line.startswith("#") ):
-                    (key,value) = line.rstrip('\n').split("=",1)
+                if not line.startswith("#"):
+                    (key, value) = line.rstrip("\n").split("=", 1)
                     userlist[key] = value
             usermap.close()
-            if ( debug ):
-                logger.info("Done reading usermap file %" % usermapfile)
-        elif ( debug ):
+            if debug:
+                logger.info("Done reading usermap file %s" % usermapfile)
+        elif debug:
             logger.info("Skipping nonexistent groupmap file %s\n" % usermapfile)
-    if ( groupmapfile is not None ):
-        if ( os.path.exists(groupmapfile) ):
-            if ( debug ):
+    if groupmapfile is not None:
+        if os.path.exists(groupmapfile):
+            if debug:
                 logger.info("Reading groupmap file %s" % groupmapfile)
             groupmap = open(groupmapfile)
             for line in groupmap.readlines():
-                if ( not line.startswith("#") ):
-                    (key,value) = line.rstrip('\n').split("=",1)
+                if not line.startswith("#"):
+                    (key, value) = line.rstrip("\n").split("=", 1)
                     grouplist[key] = value
             groupmap.close()
-            if ( debug ):
+            if debug:
                 logger.info("Done reading groupmap file %s" % groupmapfile)
-        elif ( debug ):
+        elif debug:
             logger.info("Skipping nonexistent groupmap file %s" % groupmapfile)
-    if ( acctmapfile is not None ):
-        if ( os.path.exists(acctmapfile) ):
-            if ( debug ):
+    if acctmapfile is not None:
+        if os.path.exists(acctmapfile):
+            if debug:
                 logger.info("Reading acctmap file %s" % acctmapfile)
             acctmap = open(acctmapfile)
             for line in acctmap.readlines():
-                if ( not line.startswith("#") ):
-                    (key,value) = line.rstrip('\n').split("=",1)
+                if not line.startswith("#"):
+                    (key, value) = line.rstrip("\n").split("=", 1)
                     acctlist[key] = value
             acctmap.close()
-            if ( debug ):
+            if debug:
                 logger.info("Done reading acctmap file %s" % acctmapfile)
-        elif ( debug ):
-            logger.info("Skipping nonexistent acctmap file %s" % acctmapfile)            
+        elif debug:
+            logger.info("Skipping nonexistent acctmap file %s" % acctmapfile)
 
 nuser = len(userlist.keys())
 ngroup = len(grouplist.keys())
 nacct = len(acctlist.keys())
 minjobid = -1
 
-if ( deidentify or autorenumber ):
+if deidentify or autorenumber:
     for record in rawdata:
-        if ( deidentify ):
+        if deidentify:
             for key in record[3].keys():
-                if ( key=="user" and record[3][key] not in userlist ):
+                if key == "user" and record[3][key] not in userlist:
                     newuser = "usr%05d" % nuser
                     userlist[record[3][key]] = newuser
-                    nuser = nuser+1
-                elif ( key=="group" and record[3][key] not in grouplist ):
+                    nuser = nuser + 1
+                elif key == "group" and record[3][key] not in grouplist:
                     newgroup = "grp%05d" % ngroup
                     grouplist[record[3][key]] = newgroup
-                    ngroup = ngroup+1
-                elif ( key=="account"  and record[3][key] not in acctlist ):
+                    ngroup = ngroup + 1
+                elif key == "account" and record[3][key] not in acctlist:
                     newacct = "act%05d" % nacct
                     acctlist[record[3][key]] = newacct
-                    nacct = nacct+1
-                elif ( key in ["owner","requestor"] ):
+                    nacct = nacct + 1
+                elif key in ["owner", "requestor"]:
                     user = record[3][key].split("@")[0]
-                    if ( user not in userlist ):
+                    if user not in userlist:
                         newuser = "usr%05d" % nuser
                         userlist[user] = newuser
-                        nuser = nuser+1
-        if ( autorenumber ):
-            njobid = int(re.sub("\[[0-9]*\]","",record[0].split(".")[0]))
-            if ( minjobid==-1 or njobid<minjobid ):
+                        nuser = nuser + 1
+        if autorenumber:
+            njobid = int(re.sub(r"\[[0-9]*\]", "", record[0].split(".")[0]))
+            if minjobid == -1 or njobid < minjobid:
                 minjobid = njobid
 
-if ( autorenumber and jobiddelta==0 and minjobid!=-1 ):
+if autorenumber and jobiddelta == 0 and minjobid != -1:
     jobiddelta = -minjobid
 
-if ( debug ):
-    logger.info("userlist = "+str(userlist)+"\n")
-    logger.info("grouplist = "+str(grouplist)+"\n")
-    logger.info("acctlist = "+str(acctlist)+"\n")
+if debug:
+    logger.info("userlist = " + str(userlist) + "\n")
+    logger.info("grouplist = " + str(grouplist) + "\n")
+    logger.info("acctlist = " + str(acctlist) + "\n")
     logger.info("jobiddelta = %d\n" % jobiddelta)
     logger.info("tsdelta = %d\n" % tsdelta)
 
 # Write maps, if requested
-if ( writemaps ):
-    if ( usermapfile is not None ):
-        if ( debug ):
+if writemaps:
+    if usermapfile is not None:
+        if debug:
             logger.info("Writing usermap file %s" % usermapfile)
-        usermap = open(usermapfile,'w')
+        usermap = open(usermapfile, "w")
         for key in sorted(userlist.keys()):
-            usermap.write("%s=%s\n" % (key,userlist[key]))
+            usermap.write("%s=%s\n" % (key, userlist[key]))
         usermap.flush()
         usermap.close()
-        if ( debug ):
+        if debug:
             logger.info("Done writing usermap file %s" % usermapfile)
-    if ( groupmapfile is not None ):
-        if ( debug ):
+    if groupmapfile is not None:
+        if debug:
             logger.info("Writing groupmap file %s" % groupmapfile)
-        groupmap = open(groupmapfile,'w')
+        groupmap = open(groupmapfile, "w")
         for key in sorted(grouplist.keys()):
-            groupmap.write("%s=%s\n" % (key,grouplist[key]))
+            groupmap.write("%s=%s\n" % (key, grouplist[key]))
         groupmap.flush()
         groupmap.close()
-        if ( debug ):
+        if debug:
             logger.info("Done writing groupmap file %s" % groupmapfile)
-    if ( acctmapfile is not None ):
-        if ( debug ):
+    if acctmapfile is not None:
+        if debug:
             logger.info("Writing acctmap file %s" % acctmapfile)
-        if ( os.path.exists(acctmapfile) ):
+        if os.path.exists(acctmapfile):
             os.remove(acctmapfile)
-        acctmap = open(acctmapfile,'w')
+        acctmap = open(acctmapfile, "w")
         for key in sorted(acctlist.keys()):
-            acctmap.write("%s=%s\n" % (key,acctlist[key]))
+            acctmap.write("%s=%s\n" % (key, acctlist[key]))
         acctmap.flush()
         acctmap.close()
-        if ( debug ):
+        if debug:
             logger.info("Done writing acctmap file %s" % acctmapfile)
 
 # Write transformed log file
-outfile = open(args[1],'w')
+outfile = open(args[1], "w")
 for record in rawdata:
     jobid = record[0]
-    if ( hostxform is not None ):
-        jobid = re.sub(hostxform[0],hostxform[1],jobid)
-    if ( jobiddelta!=0 ):
-        oldnjobid = int(re.sub("\[[0-9]*\]","",jobid.split(".")[0]))
-        njobid = oldnjobid+jobiddelta
-        jobid = jobid.replace("%d" % oldnjobid,"%d" % njobid)
+    if hostxform is not None:
+        jobid = re.sub(hostxform[0], hostxform[1], jobid)
+    if jobiddelta != 0:
+        oldnjobid = int(re.sub(r"\[[0-9]*\]", "", jobid.split(".")[0]))
+        njobid = oldnjobid + jobiddelta
+        jobid = jobid.replace("%d" % oldnjobid, "%d" % njobid)
     # datestamp is in MM/DD/YYYY hh:mm:ss format
     datestamp = record[1]
-    if ( tsdelta!=0 ):
+    if tsdelta != 0:
         dateformat = "%m/%d/%Y %H:%M:%S"
-        d = datetime.datetime.strptime(datestamp,dateformat)+datetime.timedelta(seconds=tsdelta)
+        d = datetime.datetime.strptime(datestamp, dateformat) + datetime.timedelta(
+            seconds=tsdelta
+        )
         datestamp = d.strftime(dateformat)
     state = record[2]
     newresources = {}
     user = None
     olduser = None
-    if ( "user" in record[3] ):
-        olduser =  record[3]["user"]
-    elif ( "owner" in record[3] ):
+    if "user" in record[3]:
+        olduser = record[3]["user"]
+    elif "owner" in record[3]:
         olduser = record[3]["owner"].split("@")[0]
-    elif ( "requestor" in record[3] ):
+    elif "requestor" in record[3]:
         olduser = record[3]["requestor"].split("@")[0]
     user = olduser
-    if ( olduser in userlist ):
+    if olduser in userlist:
         user = userlist[olduser]
     for key in record[3].keys():
         value = record[3][key]
-        if ( key=="user" and value in userlist ):
+        if key == "user" and value in userlist:
             value = userlist[value]
-        if ( key=="group" and value in grouplist ):
+        if key == "group" and value in grouplist:
             value = grouplist[value]
-        if ( key=="account" and value in acctlist ):
+        if key == "account" and value in acctlist:
             value = acctlist[value]
-        if ( key in ["Resource_List.epilogue","Resource_List.prologue","owner","requestor"] ):
-            if ( olduser is not None and user is not None and olduser!=user ):
-                value = value.replace(olduser,user)
-            if ( hostxform is not None ):
-                value = re.sub(hostxform[0],hostxform[1],value)
-            if ( nodexform is not None ):
-                value = re.sub(nodexform[0],nodexform[1],value)
-        if ( key=="exec_host" and nodexform is not None ):
-            value = re.sub(nodexform[0],nodexform[1],value)
-        if ( key in ["ctime","qtime","etime","start","end"] and tsdelta!=0 ):
-            value = "%d" % (int(value)+tsdelta)
+        if key in [
+            "Resource_List.epilogue",
+            "Resource_List.prologue",
+            "owner",
+            "requestor",
+        ]:
+            if olduser is not None and user is not None and olduser != user:
+                value = value.replace(olduser, user)
+            if hostxform is not None:
+                value = re.sub(hostxform[0], hostxform[1], value)
+            if nodexform is not None:
+                value = re.sub(nodexform[0], nodexform[1], value)
+        if key == "exec_host" and nodexform is not None:
+            value = re.sub(nodexform[0], nodexform[1], value)
+        if key in ["ctime", "qtime", "etime", "start", "end"] and tsdelta != 0:
+            value = "%d" % (int(value) + tsdelta)
         newresources[key] = value
-    newrecord = (jobid,datestamp,state,newresources)
-    pbsacct.write_record_to_accounting_log(newrecord,outfile)
+    newrecord = (jobid, datestamp, state, newresources)
+    pbsacct.write_record_to_accounting_log(newrecord, outfile)
 outfile.close()

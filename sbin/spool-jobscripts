@@ -17,8 +17,10 @@ import getopt
 import os
 import sys
 
+
 def usage():
     sys.exit(1)
+
 
 #
 # main program begins here
@@ -32,34 +34,32 @@ noop = False
 
 # command line argument processing
 try:
-    opts, args = getopt.getopt(sys.argv[1:],
-                                   "Ta:d:hs:",
-                                   [])
+    opts, args = getopt.getopt(sys.argv[1:], "Ta:d:hs:", [])
 except getopt.GetoptError as err:
-    sys.stderr.write(str(err)+"\n")
+    sys.stderr.write(str(err) + "\n")
     usage()
 for opt in opts:
-    if ( opt[0] in ["-T"] ):
+    if opt[0] in ["-T"]:
         noop = True
-    elif ( opt[0] in ["-a"] ):
+    elif opt[0] in ["-a"]:
         append_to_jobid_in_db = opt[1]
-    elif ( opt[0] in ["-d"] ):
+    elif opt[0] in ["-d"]:
         spooldir = opt[1]
-    elif ( opt[0] in ["-h"] ):
+    elif opt[0] in ["-h"]:
         usage()
-    elif ( opt[0] in ["-s"] ):
+    elif opt[0] in ["-s"]:
         jobsdir = opt[1]
 
-if ( len(args)>0 ):
+if len(args) > 0:
     jobsdir = args[0]
 
-if ( not os.path.exists(jobsdir) ):
+if not os.path.exists(jobsdir):
     raise IOError("Jobs directory %s does not exist" % jobsdir)
 else:
     os.chdir(jobsdir)
 
-if ( not os.path.exists(spooldir) ):
-    os.mkdir(spooldir,0o700)
+if not os.path.exists(spooldir):
+    os.mkdir(spooldir, 0o700)
 
 # get list of script files
 srcfiles = []
@@ -67,42 +67,43 @@ destfiles = []
 for file in os.listdir(jobsdir):
     # for each script file, copy it to the spool directory if it's not already
     # there
-    srcfile = jobsdir+"/"+file
-    destfile = spooldir+"/"+file
-    if ( file.endswith(".SC") and 
-         os.path.exists(srcfile) and 
-         not os.path.exists(destfile) ):
+    srcfile = jobsdir + "/" + file
+    destfile = spooldir + "/" + file
+    if (
+        file.endswith(".SC")
+        and os.path.exists(srcfile)
+        and not os.path.exists(destfile)
+    ):
         srcfiles.append(srcfile)
         destfiles.append(destfile)
 
 # copy files to spool dir
-if ( len(srcfiles)>0 ):
-    cmd = "/bin/cp %s %s" % (" ".join(srcfiles),spooldir)
-    if ( noop ):
+if len(srcfiles) > 0:
+    cmd = "/bin/cp %s %s" % (" ".join(srcfiles), spooldir)
+    if noop:
         sys.stderr.write("%s\n" % cmd)
     else:
         os.system(cmd)
 
 # fork/exec jobscript-to-db; don't wait for completion
-if ( len(destfiles)>0 ):
+if len(destfiles) > 0:
     pid = os.fork()
-    if ( pid==0 ):
+    if pid == 0:
         cmd = "/usr/local/sbin/jobscript-to-db"
         args = [cmd]
-        if ( noop ):
+        if noop:
             args.append("-T")
-        if ( append_to_jobid_in_db is not None ):
+        if append_to_jobid_in_db is not None:
             args.append("-a")
             args.append(append_to_jobid_in_db)
         for destfile in destfiles:
             args.append(destfile)
-        if ( noop ):
+        if noop:
             sys.stderr.write(" ".join(args))
         try:
-            os.execv(cmd,args)
+            os.execv(cmd, args)
         except Exception as e:
             sys.stderr.write("%s\n" % str(e))
         sys.exit(0)
 
 sys.exit(0)
-

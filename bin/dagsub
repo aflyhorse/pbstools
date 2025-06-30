@@ -15,12 +15,12 @@
 # $Date$
 #
 # Usage:  dagsub [options] file [file]
-# Options:       
+# Options:
 #        -no_submit
 #        -verbose
 #        -force (currently unused)
 #        -maxjobs NumberOfJobs (currently unused)
-#        -maxjobwait seconds 
+#        -maxjobwait seconds
 #        -log LogFileName
 
 """dagsub:  Submit one or more directed acyclic graphs of jobs to TORQUE
@@ -37,7 +37,7 @@ Options:
 
 Example submisson:
     dagsub -verbose mydag.dag
-    
+
 For information on the input file desribing the DAG please see
 http://www.cs.wisc.edu/condor/manual/v7.0/2_10DAGMan_Applications.html
 All file options EXCEPT CONFIG are currently supported.
@@ -65,19 +65,17 @@ import getopt
 import datetime
 import os.path
 import sys
-import operator
 import time
-import shutil
-import string
 import subprocess
 import getpass
 
-SUCCESS     = 0
-FAIL        = -1
-NOT_FOUND   = 1
+SUCCESS = 0
+FAIL = -1
+NOT_FOUND = 1
 IN_PROGRESS = 2
 
-### begin code from Python Cookbook
+
+# begin code from Python Cookbook
 def unique(s):
     """Return a list of the elements in s, but without duplicates.
     For example, unique([1,2,3,1,2,3]) is some permutation of [1,2,3],
@@ -111,9 +109,9 @@ def unique(s):
         for x in s:
             u[x] = 1
     except TypeError:
-        del u  # move on to the next method
+        pass  # move on to the next method
     else:
-        return u.keys()
+        return list(u.keys())
 
     # We can't hash all the elements.  Second fastest is to sort,
     # which brings the equal elements together; then duplicates are
@@ -126,12 +124,12 @@ def unique(s):
         t = list(s)
         t.sort()
     except TypeError:
-        del t  # move on to the next method
+        pass  # move on to the next method
     else:
         assert n > 0
         last = t[0]
         lasti = i = 1
-        while i << n:
+        while i < n:
             if t[i] != last:
                 t[lasti] = last = t[i]
                 lasti += 1
@@ -143,35 +141,40 @@ def unique(s):
         if x not in u:
             u.append(x)
     return u
-### end code from Python Cookbook
+
+
+# end code from Python Cookbook
+
 
 def job_exists(jobid):
     """
     OVERVIEW:   finds if a job is in the queue
-    
+
     PARAMETERS: jobid, the job ID to find
-    
+
     RETURNS:    True, if job is found
                 False, if job is not found
     """
-    if ( jobid is not None ):
+    if jobid is not None:
         user_name = getpass.getuser()
-        cmd = "qselect -s RHQ -u "+user_name+" | egrep -c "+ jobid
-        p = subprocess.Popen(cmd, shell=True,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE,
-                             close_fds=True)
+        cmd = "qselect -s RHQ -u " + user_name + " | egrep -c " + jobid
+        p = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True,
+        )
         pin = p.stdin
         perr = p.stderr
         pout = p.stdout
         pin.close()
-        stderr = perr.readlines()
         perr.close()
         stdout = pout.readlines()
         pout.close()
         p.wait()
-        if len(stdout)>0:
+        if len(stdout) > 0:
             num_jobid = int(stdout[0])
         if num_jobid > 0:
             return True
@@ -191,34 +194,35 @@ class Category(object):
            _max, the maximum number of jobs in queue or running
            _job_nodes , list of job nodes in category
     """
-    def __init__(self,name):
+
+    def __init__(self, name):
         """
         Creates a new category with _name, name
         sets _max to infinity and _job_nodes to an empty list
         """
         self._name = name
-        self._max  = float('infinity')
+        self._max = float("infinity")
         self._job_nodes = []
-    
+
     def get_name(self):
         """
         Returns private attribute _name
         """
         return self._name
-    
+
     def get_max(self):
         """
         Returns private attribute _max
         """
         return self._max
-    
-    def set_max(self,maximum):
+
+    def set_max(self, maximum):
         """
         Sets _max to maximum
         """
         self._max = maximum
 
-    def add_job_node(self,node):
+    def add_job_node(self, node):
         """
         Adds a node to the _job_nodes list
         """
@@ -230,11 +234,13 @@ class Category(object):
         """
         return self._job_nodes
 
+
 class JobNode(object):
     """
     Defines a job node in the DAG
     """
-    def __init__(self,name,script):
+
+    def __init__(self, name, script):
         self._name = name
         self._script = script
         self._queue = None
@@ -256,33 +262,33 @@ class JobNode(object):
         self._abortreturn = dict()
         self._noretrystatus = 0
         self._category = None
-        if ( not os.path.exists(script) ):
-            raise IOError("File "+script+" not found")
+        if not os.path.exists(script):
+            raise IOError("File " + script + " not found")
 
     def __lt__(self, other):
         return self._priority < other._priority
 
-    def addChild(self,child):
-        if ( self._children is None ):
+    def addChild(self, child):
+        if self._children is None:
             self._children = [child]
         else:
             self._children.append(child)
 
-    def addParent(self,parent):
-        if ( self._parents is None ):
+    def addParent(self, parent):
+        if self._parents is None:
             self._parents = [parent]
         else:
             self._parents.append(parent)
 
-    def addVar(self,var):
-        if ( self._vars is None ):
+    def addVar(self, var):
+        if self._vars is None:
             self._vars = [var]
         else:
             self._vars.append(var)
 
-    def addAbortStatus(self,abort,returncode=None):
+    def addAbortStatus(self, abort, returncode=None):
         self._abortstatus.append(abort)
-        if ( returncode is None ):
+        if returncode is None:
             self._abortreturn[abort] = abort
         else:
             self._abortreturn[abort] = returncode
@@ -328,7 +334,7 @@ class JobNode(object):
 
     def category(self):
         return self._category
-    
+
     def noRetryStatus(self):
         return self._noretrystatus
 
@@ -347,50 +353,50 @@ class JobNode(object):
     def exitCode(self):
         return self._exitcode
 
-    def setRetries(self,retries):
+    def setRetries(self, retries):
         self._retries = int(retries)
 
-    def setPriority(self,priority):
+    def setPriority(self, priority):
         self._priority = priority
 
-    def setQueue(self,queue):
+    def setQueue(self, queue):
         self._queue = queue
 
     def setScript(self, script):
         self._script = self._script + script
 
-    def setPreScript(self,prescript):
+    def setPreScript(self, prescript):
         self._prescript = prescript
 
-    def setPreScriptHasRun(self,flag):
+    def setPreScriptHasRun(self, flag):
         self._prescript_run = flag
 
-    def setPostScript(self,postscript):
+    def setPostScript(self, postscript):
         self._postscript = postscript
 
-    def setPostScriptHasRun(self,flag):
+    def setPostScriptHasRun(self, flag):
         self._postscript_run = flag
 
-    def setDone(self,done):
+    def setDone(self, done):
         self._done = done
 
-    def setSubmitted(self,submitted):
+    def setSubmitted(self, submitted):
         self._submitted = submitted
 
-    def setExitCode(self,exitcode):
+    def setExitCode(self, exitcode):
         self._exitcode = exitcode
 
-    def setNoRetryStatus(self,noretry):
+    def setNoRetryStatus(self, noretry):
         self._noretrystatus = noretry
-    
-    def set_category(self,category):
+
+    def set_category(self, category):
         self._category = category
 
     def isSick(self):
         self._isHealthy = False
 
-    def childrenAreSick(self,dag):
-        if ( self._children is not None ):
+    def childrenAreSick(self, dag):
+        if self._children is not None:
             for child in self._children:
                 childnode = dag.getNode(child)
                 childnode.isSick()
@@ -399,126 +405,210 @@ class JobNode(object):
         """
         OVERVIEW: returns the status of the job node.
                   Writes long messages to log if verbose.
-                  
+
         MODIFIES: self._done , if job is done
                   self._exitCode, if job is done
-                  
+
         OUTCOMES: returns normally if job is completed, not found, or in progress.
                   exits program if job has failed
-                  
+
         RETURNS: SUCCESS     = 0    job has completed successfully
                  FAIL        = -1   job has failed
                  NOT_FOUND   = 1    job is not found, status of job unknown
-                 IN_PROGRESS = 2    job is currently in queue  
+                 IN_PROGRESS = 2    job is currently in queue
         """
-        if ( self.jobId() is not None ):
-            if ( verbose ):
-                log.write(str(datetime.datetime.now())+":  checking status of job "+
-                          self.name()+", jobid "+self.jobId()+"\n")
+        if self.jobId() is not None:
+            if verbose:
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  checking status of job "
+                    + self.name()
+                    + ", jobid "
+                    + self.jobId()
+                    + "\n"
+                )
                 log.flush()
 
-            cmd = "qstat -f "+str(self.jobId())
-            p = subprocess.Popen(cmd, shell=True,
-                                 stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 close_fds=True)
+            cmd = "qstat -f " + str(self.jobId())
+            p = subprocess.Popen(
+                cmd,
+                shell=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                close_fds=True,
+            )
             pin = p.stdin
             perr = p.stderr
             pout = p.stdout
             pin.close()
             stderr = perr.readlines()
             perr.close()
-            if ( verbose and len(stderr)>0 ):
+            if verbose and len(stderr) > 0:
                 for line in stderr:
-                    log.write(str(datetime.datetime.now())+":  "+line)
+                    log.write(str(datetime.datetime.now()) + ":  " + line)
                 log.flush()
             stdout = pout.readlines()
             pout.close()
             p.wait()
-            if ( p.returncode!=0 ):
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                              " jobid "+self.jobId()+" not found\n")
+            if p.returncode != 0:
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  job "
+                        + self.name()
+                        + " jobid "
+                        + self.jobId()
+                        + " not found\n"
+                    )
                     log.flush()
                 return NOT_FOUND
-            if( len(stdout)==0 ): 
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                              " jobid "+self.jobId()+" not found\n")
+            if len(stdout) == 0:
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  job "
+                        + self.name()
+                        + " jobid "
+                        + self.jobId()
+                        + " not found\n"
+                    )
                     log.flush()
                 return NOT_FOUND
             for line in stdout:
-                if( line.find('exit_status')!=-1 ):
+                if line.find("exit_status") != -1:
                     exit_status = int(line.split(" = ")[1])
                     self.setExitCode(exit_status)
-                    if( exit_status==0 ):
-                        if ( verbose ):
-                            log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                                      " jobid "+self.jobId()+" has completed\n")
+                    if exit_status == 0:
+                        if verbose:
+                            log.write(
+                                str(datetime.datetime.now())
+                                + ":  job "
+                                + self.name()
+                                + " jobid "
+                                + self.jobId()
+                                + " has completed\n"
+                            )
                             log.flush()
                         self.setDone(True)
                         return SUCCESS
                     else:
-                        log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                                  " jobid "+self.jobId()+" has failed\n")
+                        log.write(
+                            str(datetime.datetime.now())
+                            + ":  job "
+                            + self.name()
+                            + " jobid "
+                            + self.jobId()
+                            + " has failed\n"
+                        )
                         log.flush()
-                        if ( exit_status in self._abortstatus ):
-                            log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                                      " jobid "+self.jobId()+" had fatal exit status "+
-                                      str(exit_status)+", aborting\n")
+                        if exit_status in self._abortstatus:
+                            log.write(
+                                str(datetime.datetime.now())
+                                + ":  job "
+                                + self.name()
+                                + " jobid "
+                                + self.jobId()
+                                + " had fatal exit status "
+                                + str(exit_status)
+                                + ", aborting\n"
+                            )
                             log.flush()
                             sys.exit(self._abortreturn[exit_status])
                         return FAIL
-            if ( verbose ):
-                log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                          " jobid "+self.jobId()+" is in progress\n")
+            if verbose:
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  job "
+                    + self.name()
+                    + " jobid "
+                    + self.jobId()
+                    + " is in progress\n"
+                )
                 log.flush()
             return IN_PROGRESS
         else:
-            if ( verbose ):
-                log.write(str(datetime.datetime.now())+":  job "+self.name()+" not found\n")
+            if verbose:
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  job "
+                    + self.name()
+                    + " not found\n"
+                )
                 log.flush()
             return NOT_FOUND
-            
+
     def retry(self, cmd, dag, log):
         tries = 0
         condition = self.jobStatus(log)
-        while ( (condition==IN_PROGRESS or condition==FAIL or condition==NOT_FOUND)
-                and (tries<=self.retries()) ):
-            # There are two possibilities where a job is not found. 
+        while (
+            condition == IN_PROGRESS or condition == FAIL or condition == NOT_FOUND
+        ) and (tries <= self.retries()):
+            # There are two possibilities where a job is not found.
             #   1. The job is in 'C' state for more than the length of
             #      time that the server keeps completed jobs, so the job has
             #      been flushed out.
             #   2. The job is somehow deleted in 'Q' or 'H' state(s).
             # Implementation:
-            #   We assume that "NOT_FOUND" is same as "FAIL", and we will resubmit the job 
+            #   We assume that "NOT_FOUND" is same as "FAIL", and we will resubmit the job
             #   if "NOT_FOUND" is detected.
-            if ( tries>=self.retries() and (condition==FAIL or condition==NOT_FOUND) ):
-                log.write(str(datetime.datetime.now())+":  job "+self.name()+" retries exhausted\n")
+            if tries >= self.retries() and (
+                condition == FAIL or condition == NOT_FOUND
+            ):
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  job "
+                    + self.name()
+                    + " retries exhausted\n"
+                )
                 log.flush()
                 return tries
-            elif ( self.exitCode() is not None and self.exitCode()==self.noRetryStatus() ):
-                log.write(str(datetime.datetime.now())+":  job "+self.name()+" failed with exit status "+
-                          str(self.noRetryStatus())+", not retrying\n")
+            elif (
+                self.exitCode() is not None and self.exitCode() == self.noRetryStatus()
+            ):
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  job "
+                    + self.name()
+                    + " failed with exit status "
+                    + str(self.noRetryStatus())
+                    + ", not retrying\n"
+                )
                 log.flush()
                 return tries
             else:
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+":  job "+self.name()+
-                              " has "+str(self.retries()-tries)+" retries left\n")
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  job "
+                        + self.name()
+                        + " has "
+                        + str(self.retries() - tries)
+                        + " retries left\n"
+                    )
                     log.flush()
-            if ( condition==FAIL or condition==NOT_FOUND ):
+            if condition == FAIL or condition == NOT_FOUND:
                 self.setJobId(None)
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+": job "+self.name()+" retry "+str(tries)+
-                              " being submitted using command \""+cmd+"\"\n")
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ": job "
+                        + self.name()
+                        + " retry "
+                        + str(tries)
+                        + ' being submitted using command "'
+                        + cmd
+                        + '"\n'
+                    )
                     log.flush()
-                p = subprocess.Popen(cmd, shell=True,
-                                     stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     close_fds=True)
+                p = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    close_fds=True,
+                )
                 pin = p.stdin
                 perr = p.stderr
                 pout = p.stdout
@@ -526,118 +616,152 @@ class JobNode(object):
                 jobid = ""
                 try:
                     stdout = pout.readlines()
-                    if ( len(stdout)>0 ):
+                    if len(stdout) > 0:
                         jobid = stdout[0]
-                        if ( jobid[-1]=="\n" ):
+                        if jobid[-1] == "\n":
                             jobid = jobid[:-1]
                     stderr = perr.readlines()
                     for line in stderr:
-                        log.write(str(datetime.datetime.now())+":  "+line)
+                        log.write(str(datetime.datetime.now()) + ":  " + line)
                     log.flush()
                     pout.close()
                 except IndexError as err:
-                    log.write(str(datetime.datetime.now())+":  "+str(err)+"\n")
+                    log.write(str(datetime.datetime.now()) + ":  " + str(err) + "\n")
                     log.flush()
                 stderr = perr.readlines()
                 perr.close()
                 for line in stderr:
-                    log.write(str(datetime.datetime.now())+":  "+line)
+                    log.write(str(datetime.datetime.now()) + ":  " + line)
                 log.flush()
                 p.wait()
-                tries += 1    
-                if ( p.returncode!=0 or jobid is None or jobid=="" ):
+                tries += 1
+                if p.returncode != 0 or jobid is None or jobid == "":
                     self.setJobId(None)
-                    log.write(str(datetime.datetime.now())+":  submission of retry "+str(tries)+
-                              " (max "+str(self.retries())+") for job "+self.name()+" failed\n")
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  submission of retry "
+                        + str(tries)
+                        + " (max "
+                        + str(self.retries())
+                        + ") for job "
+                        + self.name()
+                        + " failed\n"
+                    )
                     log.flush()
                 else:
                     self.setJobId(jobid)
-                    log.write(str(datetime.datetime.now())+":  submitted job "+self.name()+
-                              " retry "+str(tries)+" (max "+str(self.retries())+") as jobid "+
-                              str(self.jobId())+"\n")
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  submitted job "
+                        + self.name()
+                        + " retry "
+                        + str(tries)
+                        + " (max "
+                        + str(self.retries())
+                        + ") as jobid "
+                        + str(self.jobId())
+                        + "\n"
+                    )
                     log.flush()
-            if ( verbose ):
-                log.write(str(datetime.datetime.now())+":  sleeping for "+str(timeout)+" seconds\n")
+            if verbose:
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  sleeping for "
+                    + str(timeout)
+                    + " seconds\n"
+                )
                 log.flush()
             dag.writeRescueDAG(log)
             time.sleep(timeout)
             condition = self.jobStatus(log)
         return tries
 
-    def _presubmit(self,dag,log,categories):
+    def _presubmit(self, dag, log, categories):
         # make sure all parents are submitted, if necessary
         parentjobs = None
-        if ( self.parents() is not None ):
+        if self.parents() is not None:
             node_list = []
             for parent in self.parents():
-                if (len(node_list) == 0):
+                if len(node_list) == 0:
                     node_list = [dag.getNode(parent)]
                 else:
                     node_list.append(dag.getNode(parent))
             node_list.sort()
 
             for parentnode in node_list:
-                success = parentnode.submit(dag,log,categories)
-                if ( not success ):
+                success = parentnode.submit(dag, log, categories)
+                if not success:
                     return success
                 else:
-                    if ( parentjobs is None and parentnode.jobId() is not None):
+                    if parentjobs is None and parentnode.jobId() is not None:
                         parentjobs = [parentnode.jobId()]
-                    elif ( parentnode.jobId() is not None ):
+                    elif parentnode.jobId() is not None:
                         parentjobs.append(parentnode.jobId())
-                
+
         # do prologue, if needed
-        if ( self.preScript() is not None and not self.preScriptHasRun() ):
+        if self.preScript() is not None and not self.preScriptHasRun():
             cmd = self.preScript()[0]
-            if ( len(self.preScript())>1 ):
+            if len(self.preScript()) > 1:
                 for arg in self.preScript()[1:]:
-                    cmd = cmd+" "+arg
-            log.write(str(datetime.datetime.now())+":  running PRE script for job "+
-                      self.name()+" -- \""+cmd+"\"\n")
+                    cmd = cmd + " " + arg
+            log.write(
+                str(datetime.datetime.now())
+                + ":  running PRE script for job "
+                + self.name()
+                + ' -- "'
+                + cmd
+                + '"\n'
+            )
             log.flush()
             exit_status = os.system(cmd)
-            if ( exit_status!=0 ):
-                raise RuntimeError(self.name()+": preScript failed")
+            if exit_status != 0:
+                raise RuntimeError(self.name() + ": preScript failed")
             self.setPreScriptHasRun(True)
         return True
 
-    def _postsubmit(self,dag,log,categories):
+    def _postsubmit(self, dag, log, categories):
         # do epilogue, if needed
-        if ( self.postScript() is not None and not self.postScriptHasRun() ):
+        if self.postScript() is not None and not self.postScriptHasRun():
             cmd = self.postScript()[0]
-            if ( len(self.postScript())>1 ):
+            if len(self.postScript()) > 1:
                 for arg in self.postScript()[1:]:
-                    cmd = cmd+" "+arg
-            log.write(str(datetime.datetime.now())+":  running POST script for job "+
-                      self.name()+" -- \""+cmd+"\"\n")
+                    cmd = cmd + " " + arg
+            log.write(
+                str(datetime.datetime.now())
+                + ":  running POST script for job "
+                + self.name()
+                + ' -- "'
+                + cmd
+                + '"\n'
+            )
             log.flush()
             exit_status = os.system(cmd)
-            if ( exit_status!=0 ):
-                raise RuntimeError(self.name()+": postScript failed")
+            if exit_status != 0:
+                raise RuntimeError(self.name() + ": postScript failed")
             self.setPostScriptHasRun(True)
-            
+
         # dump out a rescue DAG just in case
         dag.writeRescueDAG(log)
-            
+
         # make sure all children are submitted, if necessary
-        if ( self.children() is not None ):
+        if self.children() is not None:
             node_list = []
             for child in self.children():
-                if( len(node_list)==0 ):
+                if len(node_list) == 0:
                     node_list = [dag.getNode(child)]
                 else:
                     node_list.append(dag.getNode(child))
             node_list.sort()
 
             for childnode in node_list:
-                success = childnode.submit(dag,log,categories)
-                if ( not success ):
+                success = childnode.submit(dag, log, categories)
+                if not success:
                     return success
         return True
 
-    def submit(self,dag,log,categories,deptype="afterok"):
+    def submit(self, dag, log, categories, deptype="afterok"):
         """
-        OVERVIEW: Submits job for self with dependencies 
+        OVERVIEW: Submits job for self with dependencies
 
         OUTCOMES: 1) if job is submitted successfully
                   postsubmission script is run and
@@ -650,76 +774,124 @@ class JobNode(object):
 
         RETURNS:  self._postsubmit(dag,log,categories)
         """
-        if ( self.isSubmitted() ):
+        if self.isSubmitted():
             return self.isSubmitted()
-        elif ( self.isDone() ):
+        elif self.isDone():
             return self.isDone()
 
         # do generic pre-submission stuff
-        success = self._presubmit(dag,log,categories)
-        if ( not success ):
+        success = self._presubmit(dag, log, categories)
+        if not success:
             return success
-        
+
         # do actual job submission
-        if ( not self.isSubmitted() ):
-            if ( not self.isDone() ):
-                #check number of jobs in category and wait with user specified wait time
+        if not self.isSubmitted():
+            if not self.isDone():
+                # check number of jobs in category and wait with user specified wait time
                 if self.category() is not None:
-                    while self.num_category(categories, dag.getNodes()) >= categories[self.category()].get_max():         
+                    while (
+                        self.num_category(categories, dag.getNodes())
+                        >= categories[self.category()].get_max()
+                    ):
                         dag.writeRescueDAG(log)
-                        log.write(str(datetime.datetime.now())+":  waiting "+str(maxJobWait)+
-                                  " sec for CATEGORY "+self.category()+"\n")
+                        log.write(
+                            str(datetime.datetime.now())
+                            + ":  waiting "
+                            + str(maxJobWait)
+                            + " sec for CATEGORY "
+                            + self.category()
+                            + "\n"
+                        )
                         time.sleep(maxJobWait)
                 dependencies = None
                 parents = self.parents()
-                if ( parents is not None and len(parents)>0 ):
+                if parents is not None and len(parents) > 0:
                     for parent in parents:
                         jobid = dag.getNode(parent).jobId()
-                        if ( jobid is not None ):
+                        if jobid is not None:
                             # Need to check if jobids still exist before adding them
                             # as a dependency
-                            if ( verbose ):
-                                log.write(str(datetime.datetime.now())+": job "+self.name()+
-                                          " checking for existence of parent job "+jobid+"\n")
+                            if verbose:
+                                log.write(
+                                    str(datetime.datetime.now())
+                                    + ": job "
+                                    + self.name()
+                                    + " checking for existence of parent job "
+                                    + jobid
+                                    + "\n"
+                                )
                                 log.flush()
-                            #if ( os.system("qstat "+jobid+" 2>/dev/null 1>/dev/null")==0 ):
+                            # if ( os.system("qstat "+jobid+" 2>/dev/null 1>/dev/null")==0 ):
                             if job_exists(jobid):
-                                if ( verbose ):
-                                    log.write(str(datetime.datetime.now())+": job "+self.name()+
-                                              " parent "+jobid+" found, adding to dependency list\n")
+                                if verbose:
+                                    log.write(
+                                        str(datetime.datetime.now())
+                                        + ": job "
+                                        + self.name()
+                                        + " parent "
+                                        + jobid
+                                        + " found, adding to dependency list\n"
+                                    )
                                     log.flush()
-                                if ( dependencies is None ):
+                                if dependencies is None:
                                     dependencies = [jobid]
                                 else:
                                     dependencies.append(jobid)
                             else:
-                                if ( verbose ):
-                                    log.write(str(datetime.datetime.now())+": job "+self.name()+
-                                              " parent "+jobid+" not found, ignoring\n")
+                                if verbose:
+                                    log.write(
+                                        str(datetime.datetime.now())
+                                        + ": job "
+                                        + self.name()
+                                        + " parent "
+                                        + jobid
+                                        + " not found, ignoring\n"
+                                    )
                                     log.flush()
                 dependency = ""
-                if ( dependencies is not None ):
+                if dependencies is not None:
                     # Filter dependencies to get the unique values; otherwise PBS gets confused.
                     dependencies = unique(dependencies)
                     dependencies.sort()
-                    #dependencies.reverse()
-                    dependency = "-W depend=%s:%s" % (deptype,":".join(dependencies))
+                    # dependencies.reverse()
+                    dependency = "-W depend=%s:%s" % (deptype, ":".join(dependencies))
                 vars = ""
-                if ( self.vars() is not None ):
+                if self.vars() is not None:
                     vars = "-v %s" % ",".join(self.vars())
                 queue = ""
-                if ( self.queue() is not None ):
-                    queue = "-q "+self.queue()
-                cmd = jobsubmit+" -N "+self.name()+" "+queue+" "+dependency+" "+vars+" "+self.script()
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+": job "+self.name()+
-                              " being submitted using command \""+cmd+"\"\n")
+                if self.queue() is not None:
+                    queue = "-q " + self.queue()
+                cmd = (
+                    jobsubmit
+                    + " -N "
+                    + self.name()
+                    + " "
+                    + queue
+                    + " "
+                    + dependency
+                    + " "
+                    + vars
+                    + " "
+                    + self.script()
+                )
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ": job "
+                        + self.name()
+                        + ' being submitted using command "'
+                        + cmd
+                        + '"\n'
+                    )
                     log.flush()
-                p = subprocess.Popen(cmd, shell=True,
-                                     stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     close_fds=True)
+                p = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    close_fds=True,
+                )
                 pin = p.stdin
                 perr = p.stderr
                 pout = p.stdout
@@ -727,56 +899,68 @@ class JobNode(object):
                 jobid = ""
                 try:
                     stdout = pout.readlines()
-                    if ( len(stdout)>0 ):
+                    if len(stdout) > 0:
                         jobid = stdout[0]
-                        if ( jobid[-1]=="\n" ):
+                        if jobid[-1] == "\n":
                             jobid = jobid[:-1]
                     for line in perr.readlines():
-                        log.write(str(datetime.datetime.now())+":  "+line)
+                        log.write(str(datetime.datetime.now()) + ":  " + line)
                     log.flush()
                     pout.close()
                 except IndexError as err:
-                    if(verbose):
-                        sys.stderr.write(str(err) + "\n") 
+                    if verbose:
+                        sys.stderr.write(str(err) + "\n")
                 perr.close()
                 p.wait()
-                if ( p.returncode!=0 or jobid is None or jobid=="" ):
-                    log.write(str(datetime.datetime.now())+":  job submission failed for job "+
-                              self.name()+", aborting\n")
+                if p.returncode != 0 or jobid is None or jobid == "":
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  job submission failed for job "
+                        + self.name()
+                        + ", aborting\n"
+                    )
                     log.flush()
                     sys.exit(-1)
                 self.setJobId(jobid)
-                log.write(str(datetime.datetime.now())+":  submitted job "+self.name()+
-                          " as jobid "+self.jobId()+"\n")
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  submitted job "
+                    + self.name()
+                    + " as jobid "
+                    + self.jobId()
+                    + "\n"
+                )
                 log.flush()
-             
+
                 # if RETRY is defined or there is a POST script to run, call retry()
-                if ( self.retries()>0 or (self.postScript() is not None and not self.postScriptHasRun()) ):
-                    self.retry(cmd,dag,log)
-            
+                if self.retries() > 0 or (
+                    self.postScript() is not None and not self.postScriptHasRun()
+                ):
+                    self.retry(cmd, dag, log)
+
             self.setSubmitted(True)
 
         # if nothing failed, do generic post-submission stuff
-        return self._postsubmit(dag,log,categories)
-    
+        return self._postsubmit(dag, log, categories)
+
     def num_category(self, categories, nodes):
         """
-        OVERVIEW:  finds the number of jobs submitted or running in 
+        OVERVIEW:  finds the number of jobs submitted or running in
                    self._category
 
         PARAMETERS:categories, dictionary of all categories
                    nodes, dictionary of all job nodes
 
-        RETURNS:   the number of jobs submitted or running in self._category 
+        RETURNS:   the number of jobs submitted or running in self._category
         """
         num_in_category = 0
-        
+
         if self._category is not None:
-            #initialize regular expression
+            # initialize regular expression
             reg_ex = ""
-            #get user name
+            # get user name
             user_name = getpass.getuser()
-            #get names of job nodes in my category and build regular expression of the jobIDs
+            # get names of job nodes in my category and build regular expression of the jobIDs
             cat_siblings = categories[self._category].get_job_nodes()
             for x in cat_siblings:
                 if nodes[x].jobId() is not None:
@@ -784,25 +968,27 @@ class JobNode(object):
                         reg_ex = str(nodes[x].jobId())
                     else:
                         reg_ex = reg_ex + "\|" + str(nodes[x].jobId())
-            cmd = "qselect -s RHQ -u "+user_name+" | egrep -c "+ reg_ex
-            #create subprocess to search number of jobs in category
-            p = subprocess.Popen(cmd, shell=True,
-                                 stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 close_fds=True)
+            cmd = "qselect -s RHQ -u " + user_name + " | egrep -c " + reg_ex
+            # create subprocess to search number of jobs in category
+            p = subprocess.Popen(
+                cmd,
+                shell=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                close_fds=True,
+            )
             pin = p.stdin
             perr = p.stderr
             pout = p.stdout
             pin.close()
-            stderr = perr.readlines()
             perr.close()
             stdout = pout.readlines()
             pout.close()
             p.wait()
-            if len(stdout)>0:
+            if len(stdout) > 0:
                 num_in_category = int(stdout[0])
-                
+
         return num_in_category
 
 
@@ -811,204 +997,273 @@ class SubDAGNode(JobNode):
     Extension of JobNode class for "jobs" that are in fact DAGs
     themselves
     """
-    def __init__(self,name,script):
-        super(SubDAGNode,self).__init__(name,script)
 
-    def submit(self,dag,log,categories):
+    def __init__(self, name, script):
+        super(SubDAGNode, self).__init__(name, script)
+
+    def submit(self, dag, log, categories):
         """
         OVERVIEW: Submits job for self with dependencies
-        
+
         OUTCOMES: 1) if subDAGis executed successfully,
                   postsubmission script is run and
                   child nodes are submitted using self._postsubmit
                   2) if job submission fails
                   message is printed to log and program exits
-                
+
         MODIFIES: self._submitted
                   self._jobid
 
         RETURNS:  self._postsubmit(dag,log,categories)
         """
-        if ( self.isSubmitted() ):
+        if self.isSubmitted():
             return self.isSubmitted()
-        elif ( self.isDone() ):
+        elif self.isDone():
             return self.isDone()
-        
+
         # do generic pre-submission stuff
-        success = self._presubmit(dag,log,categories)
-        if ( not success ):
+        success = self._presubmit(dag, log, categories)
+        if not success:
             return success
 
-        # "submit job" by running running sys.argv[0] synchronously 
+        # "submit job" by running running sys.argv[0] synchronously
         # on the script (actually DAG) file
-        if ( not self.isSubmitted() ):
-            args = [sys.argv[0],"-no_fork"]
+        if not self.isSubmitted():
+            args = [sys.argv[0], "-no_fork"]
             for arg in sys.argv[1:-1]:
-                if ( arg in ["-force","-no_submit","-v","-verbose"] ):
+                if arg in ["-force", "-no_submit", "-v", "-verbose"]:
                     args.append(arg)
             args.append(self.script())
             cmd = " ".join(args)
-            log.write(str(datetime.datetime.now())+":  executing subDAG "+self.name()+"\n")
-            if ( verbose ):
-                 log.write(str(datetime.datetime.now())+":  \""+cmd+"\"\n")
+            log.write(
+                str(datetime.datetime.now())
+                + ":  executing subDAG "
+                + self.name()
+                + "\n"
+            )
+            if verbose:
+                log.write(str(datetime.datetime.now()) + ':  "' + cmd + '"\n')
             exitcode = os.system(cmd)
             self.setJobId(None)
-            self.setSubmitted(True)      
+            self.setSubmitted(True)
             self.setDone(True)
             self.setExitCode(exitcode)
-            if ( self.exitCode()==0 and verbose ):
-                log.write(str(datetime.datetime.now())+":  subDAG "+self.name()+" has completed\n")
+            if self.exitCode() == 0 and verbose:
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  subDAG "
+                    + self.name()
+                    + " has completed\n"
+                )
                 log.flush()
-            elif ( verbose ):
-                log.write(str(datetime.datetime.now())+":  subDAG "+self.name()+" has failed\n")
+            elif verbose:
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  subDAG "
+                    + self.name()
+                    + " has failed\n"
+                )
                 log.flush()
 
         # if nothing failed, do generic post-submission stuff
-        return self._postsubmit(dag,log, categories)
+        return self._postsubmit(dag, log, categories)
 
-    def jobStatus(self,log):
+    def jobStatus(self, log):
         """
         OVERVIEW: returns the status of the job node.
                   Writes long messages to log if verbose.
-                  
+
         OUTCOMES: returns normally if job is completed, not found, or in progress.
                   exits program if job has failed
-                  
+
         RETURNS: SUCCESS     = 0    job has completed successfully
                  FAIL        = -1   job has failed
                  NOT_FOUND   = 1    job is not found, status of job unknown
-                 IN_PROGRESS = 2    job is currently in queue  
+                 IN_PROGRESS = 2    job is currently in queue
         """
-        if ( not self.isSubmitted() ):
+        if not self.isSubmitted():
             return NOT_FOUND
-        elif ( self.isSubmitted() and not self.isDone() ):
+        elif self.isSubmitted() and not self.isDone():
             return IN_PROGRESS
-        elif ( self.exitCode()!=0 or not self.isHealthy() ):
+        elif self.exitCode() != 0 or not self.isHealthy():
             return FAIL
         else:
             return SUCCESS
-            
+
 
 class DataJobNode(JobNode):
     """
     Extension of JobNode class for jobs that need data movers
     """
-    def __init__(self,name,script):
-        super(DataJobNode,self).__init__(name,script)
+
+    def __init__(self, name, script):
+        super(DataJobNode, self).__init__(name, script)
         self._format = None
         self._mover = None
 
-    def setFormat(self,format):
+    def setFormat(self, format):
         self._format = format
 
     def format(self):
         return self._format
 
-    def setMover(self,mover):
+    def setMover(self, mover):
         self._mover = mover
 
     def mover(self):
-        return 
+        return
 
-    def submit(self,dag,log,categories):
+    def submit(self, dag, log, categories):
         """
         OVERVIEW: Submits job for self with dependencies
-        
+
         OUTCOMES: 1) if job is submitted successfully
                   postsubmission script is run and
                   child nodes are submitted using self._postsubmit
                   2) if job submission fails
                   message is printed to log and program exits
-                
+
         MODIFIES: self._submitted
                   self._jobid
 
         RETURNS:  self._postsubmit(dag,log,categories)
         """
-        
-        if ( self.isSubmitted() ):
+
+        if self.isSubmitted():
             return self.isSubmitted()
-        elif ( self.isDone() ):
+        elif self.isDone():
             return self.isDone()
-        
+
         # do generic pre-submission stuff
-        success = self._presubmit(dag,log,categories)
-        if ( not success ):
+        success = self._presubmit(dag, log, categories)
+        if not success:
             return success
 
         # do actual job submission
-        if ( not self.isSubmitted() ):
-            if ( not self.isDone() ):
-                #check number of jobs in category and wait with user specified wait time
+        if not self.isSubmitted():
+            if not self.isDone():
+                # check number of jobs in category and wait with user specified wait time
                 if self.category() is not None:
-                    while self.num_category(categories, dag.getNodes()) >= categories[self.category()].get_max():
+                    while (
+                        self.num_category(categories, dag.getNodes())
+                        >= categories[self.category()].get_max()
+                    ):
                         dag.writeRescueDAG(log)
-                        log.write(str(datetime.datetime.now())+":  waiting "+str(maxJobWait)+
-                                  " sec for CATEGORY "+self.category()+"\n")
+                        log.write(
+                            str(datetime.datetime.now())
+                            + ":  waiting "
+                            + str(maxJobWait)
+                            + " sec for CATEGORY "
+                            + self.category()
+                            + "\n"
+                        )
                         log.flush()
-                        time.sleep(maxJobWait)             
+                        time.sleep(maxJobWait)
                 dependencies = None
                 parents = self.parents()
-                if ( parents is not None and len(parents)>0 ):
+                if parents is not None and len(parents) > 0:
                     for parent in self.parents():
                         jobid = dag.getNode(parent).jobId()
-                        if ( jobid is not None ):
+                        if jobid is not None:
                             # Need to check if jobids still exist before adding them
                             # as a dependency
-                            if ( verbose ):
-                                log.write(str(datetime.datetime.now())+": job "+self.name()+
-                                          " checking for existence of parent job "+jobid+"\n")
+                            if verbose:
+                                log.write(
+                                    str(datetime.datetime.now())
+                                    + ": job "
+                                    + self.name()
+                                    + " checking for existence of parent job "
+                                    + jobid
+                                    + "\n"
+                                )
                                 log.flush()
                             if job_exists(jobid):
-                                if ( verbose ):
-                                    log.write(str(datetime.datetime.now())+": job "+self.name()+
-                                              " parent "+jobid+" found, adding to dependency list\n")
+                                if verbose:
+                                    log.write(
+                                        str(datetime.datetime.now())
+                                        + ": job "
+                                        + self.name()
+                                        + " parent "
+                                        + jobid
+                                        + " found, adding to dependency list\n"
+                                    )
                                     log.flush()
-                                if ( dependencies is None ):
+                                if dependencies is None:
                                     dependencies = [jobid]
                                 else:
                                     dependencies.append(jobid)
                             else:
-                                if ( verbose ):
-                                    log.write(str(datetime.datetime.now())+": job "+self.name()+
-                                              " parent "+jobid+" not found, ignoring\n")
+                                if verbose:
+                                    log.write(
+                                        str(datetime.datetime.now())
+                                        + ": job "
+                                        + self.name()
+                                        + " parent "
+                                        + jobid
+                                        + " not found, ignoring\n"
+                                    )
                                     log.flush()
                 dependency = ""
-                if ( dependencies is not None ):
+                if dependencies is not None:
                     # Filter dependencies to get the unique values; otherwise PBS gets confused.
                     dependencies = unique(dependencies)
                     dependencies.sort()
-                    #dependencies.reverse()
-                    dependency = "-D "+dependencies[0]
-                    if ( len(dependencies)>1 ):
+                    # dependencies.reverse()
+                    dependency = "-D " + dependencies[0]
+                    if len(dependencies) > 1:
                         for dep in dependencies[1:]:
                             dependency += ":" + dep
                 vars = ""
-                if ( self.vars() is not None ):
-                    vars = "-v "+self.vars()[0]
-                    if ( len(self.vars())>1 ):
+                if self.vars() is not None:
+                    vars = "-v " + self.vars()[0]
+                    if len(self.vars()) > 1:
                         for var in self.vars()[1:]:
-                            vars = vars+","+var
+                            vars = vars + "," + var
                 queue = ""
-                if ( self.queue() is not None ):
-                    queue = "-q "+self.queue()
+                if self.queue() is not None:
+                    queue = "-q " + self.queue()
                 format = ""
-                if ( self.format() is not None ):
-                    format = "-F "+self.format()
+                if self.format() is not None:
+                    format = "-F " + self.format()
                 mover = ""
-                if ( self.mover() is not None ):
-                    queue = "-M "+self.mover()
-                cmd = (datasubmit+" -j oe -N "+self.name()+" "+queue+" "+dependency+" "+
-                       " "+format+" "+mover+" "+vars+" "+self.script())
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+": job "+self.name()+
-                              " being submitted using command \""+cmd+"\"\n")
+                if self.mover() is not None:
+                    queue = "-M " + self.mover()
+                cmd = (
+                    datasubmit
+                    + " -j oe -N "
+                    + self.name()
+                    + " "
+                    + queue
+                    + " "
+                    + dependency
+                    + " "
+                    + " "
+                    + format
+                    + " "
+                    + mover
+                    + " "
+                    + vars
+                    + " "
+                    + self.script()
+                )
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ": job "
+                        + self.name()
+                        + ' being submitted using command "'
+                        + cmd
+                        + '"\n'
+                    )
                     log.flush()
-                p = subprocess.Popen(cmd, shell=True,
-                                     stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     close_fds=True)
+                p = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    close_fds=True,
+                )
                 pin = p.stdin
                 perr = p.stderr
                 pout = p.stdout
@@ -1016,50 +1271,62 @@ class DataJobNode(JobNode):
                 jobid = ""
                 try:
                     stdout = pout.readlines()
-                    if ( len(stdout)>0 ):
+                    if len(stdout) > 0:
                         jobid = stdout[0]
-                        if ( jobid[-1]=="\n" ):
+                        if jobid[-1] == "\n":
                             jobid = jobid[:-1]
                     stderr = perr.readlines()
                     for line in stderr:
-                        log.write(str(datetime.datetime.now())+":  "+line)
+                        log.write(str(datetime.datetime.now()) + ":  " + line)
                         log.flush()
                 except IndexError as err:
-                    if(verbose):
-                        sys.stderr.write(str(err) + "\n") 
+                    if verbose:
+                        sys.stderr.write(str(err) + "\n")
                 pout.close()
                 perr.close()
                 p.wait()
-                if ( p.returncode!=0 or jobid is None or jobid=="" ):
-                    log.write(str(datetime.datetime.now())+":  job submission failed for job "+
-                              self.name()+", aborting\n")
+                if p.returncode != 0 or jobid is None or jobid == "":
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  job submission failed for job "
+                        + self.name()
+                        + ", aborting\n"
+                    )
                     log.flush()
                     sys.exit(-1)
                 self.setJobId(jobid)
-                log.write(str(datetime.datetime.now())+":  submitted job "+self.name()+
-                          " as jobid "+self.jobId()+"\n")
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  submitted job "
+                    + self.name()
+                    + " as jobid "
+                    + self.jobId()
+                    + "\n"
+                )
                 log.flush()
 
-        
                 # if RETRY is defined or there is a POST script, call retry()
-                if ( self.retries()>0 or (self.postScript() is not None and not self.postScriptHasRun()) ):
-                    self.retry(cmd,dag,log)
-            
+                if self.retries() > 0 or (
+                    self.postScript() is not None and not self.postScriptHasRun()
+                ):
+                    self.retry(cmd, dag, log)
+
             self.setSubmitted(True)
 
         # if nothing failed, do generic post-submission stuff
-        return self._postsubmit(dag,log, categories)
+        return self._postsubmit(dag, log, categories)
 
 
 class DAG(object):
     """
     The directed acyclic graph of JobNodes
     """
-    def __init__(self,file=None):
+
+    def __init__(self, file=None):
         self._nodes = dict()
         self._filename = file
 
-    def setFileName(self,file):
+    def setFileName(self, file):
         self._filename = file
 
     def fileName(self):
@@ -1068,12 +1335,12 @@ class DAG(object):
     def getNodes(self):
         return self._nodes
 
-    def addNode(self,node):
+    def addNode(self, node):
         nodename = node.name()
         self._nodes[nodename] = node
 
-    def getNode(self,name):
-        if ( name in self._nodes ):
+    def getNode(self, name):
+        if name in self._nodes:
             return self._nodes[name]
         else:
             return None
@@ -1085,8 +1352,8 @@ class DAG(object):
         roots = None
         for name in self._nodes.keys():
             node = self.getNode(name)
-            if ( node.parents() is None ):
-                if ( roots is None ):
+            if node.parents() is None:
+                if roots is None:
                     roots = [name]
                 else:
                     roots.append(name)
@@ -1096,37 +1363,44 @@ class DAG(object):
         root = self.getRootNodes()
         return True
 
-    def _writeDotSubtree(self,rootnode,fd,iswritten,forceoutput):
+    def _writeDotSubtree(self, rootnode, fd, iswritten, forceoutput):
         rootname = rootnode.name()
-        if ( rootnode.children() is not None and ( rootnode.isDone() or forceoutput ) ):
+        if rootnode.children() is not None and (rootnode.isDone() or forceoutput):
             for childname in rootnode.children():
                 childnode = self.getNode(childname)
-                if( childnode.isDone() or forceoutput ):
-                    fd.write("\t"+rootname+" -> "+childname+";\n")
+                if childnode.isDone() or forceoutput:
+                    fd.write("\t" + rootname + " -> " + childname + ";\n")
                     childnode = self.getNode(childname)
-                    if ( not iswritten[childname] ):
-                        self._writeDotSubtree(childnode,fd,iswritten,forceoutput)
+                    if not iswritten[childname]:
+                        self._writeDotSubtree(childnode, fd, iswritten, forceoutput)
                         iswritten[childname] = True
-        
-    def writeDotFile(self,filename,graphname,log,forceoutput):
+
+    def writeDotFile(self, filename, graphname, log, forceoutput):
         """
         Writes graph to filename using the .dot format associated with graphviz
         """
-        if ( verbose ):
-            log.write(str(datetime.datetime.now())+":  writing DOT file "+dotFile+"\n")
+        if verbose:
+            log.write(
+                str(datetime.datetime.now()) + ":  writing DOT file " + dotFile + "\n"
+            )
             log.flush()
         iswritten = dict()
         for nodename in self._nodes.keys():
             iswritten[nodename] = False
-        dotfile = open(filename,"w")
-        dotfile.write("digraph "+graphname+" {\n")
+        dotfile = open(filename, "w")
+        dotfile.write("digraph " + graphname + " {\n")
         for root in self.getRootNodes():
             rootnode = self.getNode(root)
-            self._writeDotSubtree(rootnode,dotfile,iswritten,forceoutput)
+            self._writeDotSubtree(rootnode, dotfile, iswritten, forceoutput)
         dotfile.write("}\n")
         dotfile.close()
-        if ( verbose ):
-            log.write(str(datetime.datetime.now())+":  done writing DOT file "+dotFile+"\n")
+        if verbose:
+            log.write(
+                str(datetime.datetime.now())
+                + ":  done writing DOT file "
+                + dotFile
+                + "\n"
+            )
             log.flush()
 
     def writeRescueDAG(self, log):
@@ -1134,119 +1408,165 @@ class DAG(object):
         Rewrites <self.fileName()>.rescue which provides information about
         the current stat of the DAG
         """
-    ## After all jobs are submitted, check if self.Done() is true.
-    ## If so, write "DONE" to the file.
-        if ( verbose ):
-            log.write(str(datetime.datetime.now())+":  writing rescue DAG\n")
+        # After all jobs are submitted, check if self.Done() is true.
+        # If so, write "DONE" to the file.
+        if verbose:
+            log.write(str(datetime.datetime.now()) + ":  writing rescue DAG\n")
             log.flush()
         file = self.fileName()
-        if ( file=="-" or file=="--" ):
+        if file == "-" or file == "--":
             raise RuntimeError("Cannot reread stdin to create rescue DAG")
-        if ( os.path.exists(file+".rescue") and not os.path.exists(file+".rescue.lck") and 
-             os.stat(file).st_mtime<os.stat(file+".rescue").st_mtime ):
-            oldRescueDAG = open(file+".rescue", 'r')
+        if (
+            os.path.exists(file + ".rescue")
+            and not os.path.exists(file + ".rescue.lck")
+            and os.stat(file).st_mtime < os.stat(file + ".rescue").st_mtime
+        ):
+            oldRescueDAG = open(file + ".rescue", "r")
         else:
-            if ( os.path.exists(file+".rescue") and os.path.exists(file+".rescue.lck") ):
-                log.write(str(datetime.datetime.now())+":  ignoring "+file+
-                          ".rescue due to possible corruption -- "+file+".rescue.lck present\n")
-            elif ( os.path.exists(file+".rescue") and os.stat(file).st_mtime>os.stat(file+".rescue").st_mtime ):
-                log.write(str(datetime.datetime.now())+":  ignoring "+file+
-                          ".rescue because it is older than "+file+"\n")
+            if os.path.exists(file + ".rescue") and os.path.exists(
+                file + ".rescue.lck"
+            ):
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  ignoring "
+                    + file
+                    + ".rescue due to possible corruption -- "
+                    + file
+                    + ".rescue.lck present\n"
+                )
+            elif (
+                os.path.exists(file + ".rescue")
+                and os.stat(file).st_mtime > os.stat(file + ".rescue").st_mtime
+            ):
+                log.write(
+                    str(datetime.datetime.now())
+                    + ":  ignoring "
+                    + file
+                    + ".rescue because it is older than "
+                    + file
+                    + "\n"
+                )
             log.flush()
-            oldRescueDAG = open(file, 'r')
+            oldRescueDAG = open(file, "r")
         buffer = oldRescueDAG.readlines()
         oldRescueDAG.close()
-        newRescueDAG = open(file+".rescue", 'w')
+        newRescueDAG = open(file + ".rescue", "w")
         # create "lock" file
-        open(file+".rescue.lck", 'w').close()
+        open(file + ".rescue.lck", "w").close()
         for line in buffer:
-            if ( ( line.startswith("JOB") or line.startswith('DATA') or line.startswith("SUBDAG") ) and
-                 ( 'DONE' not in line ) ):
+            if (
+                line.startswith("JOB")
+                or line.startswith("DATA")
+                or line.startswith("SUBDAG")
+            ) and ("DONE" not in line):
                 try:
                     nodename = None
-                    if ( line.startswith("JOB") or line.startswith('DATA') ):
+                    if line.startswith("JOB") or line.startswith("DATA"):
                         nodename = line.split()[1]
-                    elif ( line.startswith("SUBDAG") ):
+                    elif line.startswith("SUBDAG"):
                         nodename = line.split()[2]
                     node = self.getNode(nodename)
-                    if ( node is not None ):
+                    if node is not None:
                         cond = node.jobStatus(log)
-                        if ( not node.isHealthy() ):
-                            if ( verbose ):
-                                log.write(str(datetime.datetime.now())+":  "+node.name()+" is unhealthy\n")
+                        if not node.isHealthy():
+                            if verbose:
+                                log.write(
+                                    str(datetime.datetime.now())
+                                    + ":  "
+                                    + node.name()
+                                    + " is unhealthy\n"
+                                )
                                 log.flush()
                             newRescueDAG.write(line)
-                        elif ( cond==NOT_FOUND ):
+                        elif cond == NOT_FOUND:
                             newRescueDAG.write(line)
-                        elif ( cond==FAIL ):
+                        elif cond == FAIL:
                             node.childrenAreSick(self)
                             newRescueDAG.write(line)
-                        elif ( cond==IN_PROGRESS ):
+                        elif cond == IN_PROGRESS:
                             newRescueDAG.write(line)
-                        elif ( node.isDone() ):
-                            if ( verbose ):
-                                log.write(str(datetime.datetime.now())+":  "+node.name()+" is done\n")
+                        elif node.isDone():
+                            if verbose:
+                                log.write(
+                                    str(datetime.datetime.now())
+                                    + ":  "
+                                    + node.name()
+                                    + " is done\n"
+                                )
                                 log.flush()
-                            if(line[-2].isspace()):
+                            if line[-2].isspace():
                                 newRescueDAG.write(line[:-1] + "DONE\n")
                             else:
                                 newRescueDAG.write(line[:-1] + " DONE\n")
                     else:
-                        log.write(str(datetime.datetime.now())+":  node "+nodename+
-                                  " is None while writing rescue DAG\n")
+                        log.write(
+                            str(datetime.datetime.now())
+                            + ":  node "
+                            + nodename
+                            + " is None while writing rescue DAG\n"
+                        )
                         log.flush()
                 except AttributeError as err:
-                    log.write(str(datetime.datetime.now())+": "+str(err)+'\n')
+                    log.write(str(datetime.datetime.now()) + ": " + str(err) + "\n")
                     log.flush()
             else:
                 newRescueDAG.write(line)
         # destroy "lock" file
-        if ( os.path.exists(file+".rescue.lck") ):
-            os.remove(file+".rescue.lck")
-        newRescueDAG.close()       
-        if ( verbose ):
-            log.write(str(datetime.datetime.now())+":  done writing rescue DAG\n")
+        if os.path.exists(file + ".rescue.lck"):
+            os.remove(file + ".rescue.lck")
+        newRescueDAG.close()
+        if verbose:
+            log.write(str(datetime.datetime.now()) + ":  done writing rescue DAG\n")
             log.flush()
 
     def _subtreeIsComplete(self, rootnode, log):
         done = False
-        if ( rootnode is None ):
+        if rootnode is None:
             done = True
         else:
             rootstatus = rootnode.jobStatus(log)
-            if ( rootstatus in [FAIL,NOT_FOUND] ):
+            if rootstatus in [FAIL, NOT_FOUND]:
                 done = True
-            elif ( rootstatus in [IN_PROGRESS] ):
+            elif rootstatus in [IN_PROGRESS]:
                 done = False
-            elif ( not rootnode.isHealthy() ):
+            elif not rootnode.isHealthy():
                 done = True
             else:
                 done = rootnode.isDone()
-            if ( done and rootnode.isHealthy() and rootnode.children() is not None ):
+            if done and rootnode.isHealthy() and rootnode.children() is not None:
                 for childname in rootnode.children():
                     childnode = self.getNode(childname)
-                    if ( done ):
-                        done = self._subtreeIsComplete(childnode,log)
+                    if done:
+                        done = self._subtreeIsComplete(childnode, log)
         return done
 
     def isComplete(self, log):
         finish = True
         for root in self.getRootNodes():
             rootnode = self.getNode(root)
-            if ( finish ):
-                finish = self._subtreeIsComplete(rootnode,log)
-        if ( verbose ):
-            log.write(str(datetime.datetime.now())+":  DAG completed == "+str(finish)+"\n")
+            if finish:
+                finish = self._subtreeIsComplete(rootnode, log)
+        if verbose:
+            log.write(
+                str(datetime.datetime.now())
+                + ":  DAG completed == "
+                + str(finish)
+                + "\n"
+            )
             log.flush()
         return finish
-                                                                                            
+
+
 def usage():
     """
     Prints usage to the screen
     """
     sys.stderr.write("Usage:  dagsub [options] file [file]\n")
-    sys.stderr.write("Options:\n\t-help\n\t-force\n\t-no_fork\n\t-no_submit\n\t-verbose\n\t-log "+
-                     "logfile\n\t-maxidle NumberOfJobs\n\t-maxjobs NumberOfJobs\n\t-maxjobwait TimeToWait\n")
+    sys.stderr.write(
+        "Options:\n\t-help\n\t-force\n\t-no_fork\n\t-no_submit\n\t-verbose\n\t-log "
+        + "logfile\n\t-maxidle NumberOfJobs\n\t-maxjobs NumberOfJobs\n\t-maxjobwait TimeToWait\n"
+    )
+
 
 verbose = False
 doFork = True
@@ -1260,7 +1580,8 @@ timeout = 30
 jobsubmit = "qsub"
 datasubmit = "dmsub"
 maxJobWait = 30
-                                            
+
+
 def main():
     """
     main() does the following:
@@ -1281,7 +1602,7 @@ def main():
     global timeout
     global jobsubmit
     global maxJobWait
-    
+
     try:
         # The convention is to use single dash for short command (i.e. -h), and double dashes
         # (i.e. --no_submit) for long command.  In condor submit dag, user uses single dash
@@ -1290,167 +1611,178 @@ def main():
         cmdline = sys.argv[1:]
         pcmd = []
         for each in cmdline:
-            if ( each.startswith("-") and not each.startswith("--") ):
-                pcmd.append('-' + each)
+            if each.startswith("-") and not each.startswith("--"):
+                pcmd.append("-" + each)
             else:
                 pcmd.append(each)
 
         # Command line argument processing
-        opts, args = getopt.getopt(pcmd,"hv",
-                                   ["allowversionmismatch",
-                                    "DumpRescue",
-                                    "force",
-                                    "help",
-                                    "no_fork",
-                                    "no_recurse",
-                                    "no_submit",
-                                    "update_submit",
-                                    "usedagdir",
-                                    "verbose",
-                                    "append=",
-                                    "autorescue=",
-                                    "config=",
-                                    "dorescuefrom",
-                                    "insert_sub_file",
-                                    "log=",
-                                    "maxidle=",
-                                    "maxjobs=",
-                                    "notification=",
-                                    "oldrescue",
-                                    "outfile_dir=",
-                                    "maxjobwait=",
-                                    "timeout="])
+        opts, args = getopt.getopt(
+            pcmd,
+            "hv",
+            [
+                "allowversionmismatch",
+                "DumpRescue",
+                "force",
+                "help",
+                "no_fork",
+                "no_recurse",
+                "no_submit",
+                "update_submit",
+                "usedagdir",
+                "verbose",
+                "append=",
+                "autorescue=",
+                "config=",
+                "dorescuefrom",
+                "insert_sub_file",
+                "log=",
+                "maxidle=",
+                "maxjobs=",
+                "notification=",
+                "oldrescue",
+                "outfile_dir=",
+                "maxjobwait=",
+                "timeout=",
+            ],
+        )
     except getopt.GetoptError as err:
-        sys.stderr.write(str(err)+"\n")
+        sys.stderr.write(str(err) + "\n")
         usage()
         sys.exit(1)
     try:
         for opt, value in opts:
-            if ( opt=="--force" ):
+            if opt == "--force":
                 overwrite = True
-            if ( opt in ("-h", "--help") ):
+            if opt in ("-h", "--help"):
                 usage()
                 sys.exit(0)
-            if ( opt=="--DumpRescue" ):
+            if opt == "--DumpRescue":
                 dumpRescueAndExit = False
-            if ( opt=="--log" ):
+            if opt == "--log":
                 logFile = value
-            if (opt=="--maxidle"):
+            if opt == "--maxidle":
                 maxIdle = value
-            if (opt=="--maxjobs"):
+            if opt == "--maxjobs":
                 maxJobs = value
-            if (opt=="--notification"):
+            if opt == "--notification":
                 notification = value
-            if ( opt=="--no_fork" ):
+            if opt == "--no_fork":
                 doFork = False
-            if ( opt=="--no_submit" ):
+            if opt == "--no_submit":
                 doSubmit = False
-            if ( opt in ("-v", "--verbose") ):
+            if opt in ("-v", "--verbose"):
                 verbose = True
-            if ( opt=="--maxjobwait" ):
+            if opt == "--maxjobwait":
                 try:
                     maxJobWait = int(value)
-                except:
-                    sys.stderr.warn("Unable to interpret maxjobwait value \"%s\", ignoring.\n" % str(value))
-            if ( opt=="--timeout" ):
+                except Exception:
+                    sys.stderr.warn(
+                        'Unable to interpret maxjobwait value "%s", ignoring.\n'
+                        % str(value)
+                    )
+            if opt == "--timeout":
                 try:
                     timeout = int(value)
-                except:
-                    sys.stderr.warn("Unable to interpret timeout value \"%s\", ignoring.\n" % str(value))
+                except Exception:
+                    sys.stderr.warn(
+                        'Unable to interpret timeout value "%s", ignoring.\n'
+                        % str(value)
+                    )
     except NameError as err:
-        sys.stderr.write(str(err)+"\n")
+        sys.stderr.write(str(err) + "\n")
         usage()
         sys.exit(0)
-    
+
     if args == []:
         usage()
         sys.exit(0)
-    
+
     for file in args:
         # We fork off a separate process for each DAG and leave them running
         # in the background.  Otherwise, it's virtually impossible to do
         # things like retries without running an additional daemon/service.
         rescue_file = file + ".rescue"
-        if (os.path.exists(rescue_file)):
+        if os.path.exists(rescue_file):
             print("Rescue Dag found ...")
             print("Please do ONE of the following: ")
-            print("1. Remove "+ rescue_file + " and submit using "+ file)
+            print("1. Remove " + rescue_file + " and submit using " + file)
             print("\t\t OR")
             print("2. Submit using " + rescue_file)
             print("Exiting")
             sys.exit(1)
-        
-        if ( doFork ):
+
+        if doFork:
             child = os.fork()
         else:
             child = 0
 
         dag = None
         categories = {}
-        if( child==0 ):
+        if child == 0:
             pid = os.getpid()
             dag = DAG()
-            if ( not os.path.exists(file) ):
-                sys.stderr.write(file+" does not exist, ignoring\n")
-            elif ( not os.path.isfile(file) ):
-                sys.stderr.write(file+" is not a file, ignoring\n")
+            if not os.path.exists(file):
+                sys.stderr.write(file + " does not exist, ignoring\n")
+            elif not os.path.isfile(file):
+                sys.stderr.write(file + " is not a file, ignoring\n")
             else:
                 dag.setFileName(file)
-                if ( file=="-" ):
+                if file == "-":
                     fd = sys.stdin
                 else:
-                    fd = open(file,"r")
+                    fd = open(file, "r")
                 lines = fd.readlines()
                 for line in lines:
                     token = line.split()
                     # parse DAG file
-                    if ( token!=[] and token[0].find("#")!=0 ):
-                        if ( token[0]=="DOT" ):
+                    if token != [] and token[0].find("#") != 0:
+                        if token[0] == "DOT":
                             generateDotFile = True
                             dotFile = token[1]
-                        elif ( token[0]=="JOB" ):
-                            node = JobNode(token[1],token[2])
+                        elif token[0] == "JOB":
+                            node = JobNode(token[1], token[2])
                             try:
-                                if(token[3] == "DONE"):
+                                if token[3] == "DONE":
                                     node.setDone(True)
-                                elif(token[3] == "DIR"):
+                                elif token[3] == "DIR":
                                     node.setScript(" -d " + token[4])
-                                    if(token[5] == "DONE"):
+                                    if token[5] == "DONE":
                                         node.setDone(True)
-                            except IndexError as err:
+                            except IndexError:
                                 pass
                             dag.addNode(node)
-                        elif ( token[0]=="DATA" ):
-                            node = DataJobNode(token[1],token[2])
+                        elif token[0] == "DATA":
+                            node = DataJobNode(token[1], token[2])
                             try:
-                                for i in range(3,len(token),2):
-                                    if ( token[i]=="DONE" ):
+                                for i in range(3, len(token), 2):
+                                    if token[i] == "DONE":
                                         node.setDone(True)
-                                    elif ( token[i]=="FORMAT" ):
-                                        node.setFormat(token[i+1])
-                                    elif ( token[i]=="MOVER" ):
-                                        node.setMover(token[i+1])
-                                    elif ( token[i]=="QUEUE" ):
-                                        node.setQueue(token[i+1])
-                            except IndexError as err:
+                                    elif token[i] == "FORMAT":
+                                        node.setFormat(token[i + 1])
+                                    elif token[i] == "MOVER":
+                                        node.setMover(token[i + 1])
+                                    elif token[i] == "QUEUE":
+                                        node.setQueue(token[i + 1])
+                            except IndexError:
                                 pass
                             dag.addNode(node)
-                        elif ( token[0]=="SUBDAG" ):
-                            node = SubDAGNode(token[2],token[3])
+                        elif token[0] == "SUBDAG":
+                            node = SubDAGNode(token[2], token[3])
                             try:
-                                if ( len(token)>4 and token[4]=="DONE" ):
+                                if len(token) > 4 and token[4] == "DONE":
                                     node.setDone(True)
-                            except IndexError as err:
+                            except IndexError:
                                 pass
                             dag.addNode(node)
-                        elif ( token[0]=="PARENT" ):
+                        elif token[0] == "PARENT":
                             foundchild = False
                             parents = [token[1]]
                             children = []
                             for name in token[2:]:
-                                if ( name=="CHILD" ):
+                                if name == "CHILD":
                                     foundchild = True
-                                elif ( foundchild ):
+                                elif foundchild:
                                     children.append(name)
                                 else:
                                     parents.append(name)
@@ -1460,103 +1792,128 @@ def main():
                                     parentnode.addChild(child)
                                     childnode = dag.getNode(child)
                                     childnode.addParent(parent)
-                        elif ( token[0]=="RETRY" ):
+                        elif token[0] == "RETRY":
                             node = dag.getNode(token[1])
                             node.setRetries(token[2])
-                            if ( len(token)==5 ):
+                            if len(token) == 5:
                                 node.setNoRetryStatus(int(token[4]))
-                        elif ( token[0]=="SCRIPT" ):
+                        elif token[0] == "SCRIPT":
                             node = dag.getNode(token[2])
                             script = token[3:]
-                            if ( token[1]=="PRE" ):
+                            if token[1] == "PRE":
                                 node.setPreScript(script)
-                            elif ( token[1]=="POST" ):
+                            elif token[1] == "POST":
                                 node.setPostScript(script)
-                        elif ( token[0]=="VARS" ):
+                        elif token[0] == "VARS":
                             node = dag.getNode(token[1])
                             for var in token[2:]:
                                 node.addVar(var)
-                        elif ( token[0]=="PRIORITY" ):
+                        elif token[0] == "PRIORITY":
                             node = dag.getNode(token[1])
-                            if ( node is not None ):
+                            if node is not None:
                                 node.setPriority(token[2])
                             else:
-                                sys.stderr.write("%s:  Cannot set priority on undefined node %s" % (file,token[1]))
-                        elif ( token[0]=="ABORT-DAG-ON" ):
+                                sys.stderr.write(
+                                    "%s:  Cannot set priority on undefined node %s"
+                                    % (file, token[1])
+                                )
+                        elif token[0] == "ABORT-DAG-ON":
                             node = dag.getNode(token[1])
-                            if ( len(token)==3 ):
+                            if len(token) == 3:
                                 node.addAbortStatus(int(token[2]))
-                            elif ( len(token)==5 ):
-                                node.addAbortStatus(int(token[2]),int(token[4]))
-                        elif ( token[0]=="CATEGORY" ):
+                            elif len(token) == 5:
+                                node.addAbortStatus(int(token[2]), int(token[4]))
+                        elif token[0] == "CATEGORY":
                             node = dag.getNode(token[1])
                             if not token[2] in categories.keys():
                                 categories[token[2]] = Category(token[2])
                             node.set_category(token[2])
                             categories[token[2]].add_job_node(token[1])
                             # sys.stderr.write(file+":  CATEGORY not supported, ignoring\n")
-                        elif ( token[0]=="MAXJOBS" ):
+                        elif token[0] == "MAXJOBS":
                             if not token[1] in categories.keys():
-                                sys.stderr.write(file+":  CATEGORY = "+token[1]+" not defined, ignoring MAXJOBS\n")
+                                sys.stderr.write(
+                                    file
+                                    + ":  CATEGORY = "
+                                    + token[1]
+                                    + " not defined, ignoring MAXJOBS\n"
+                                )
                             else:
                                 categories[token[1]].set_max(int(token[2]))
-                        elif ( token[0]=="CONFIG" ):
-                            sys.stderr.write(file+":  CONFIG not supported, ignoring\n")
+                        elif token[0] == "CONFIG":
+                            sys.stderr.write(
+                                file + ":  CONFIG not supported, ignoring\n"
+                            )
                         else:
-                            sys.stderr.write(file+":  unknown keyword "+token[0]+", abort\n")
+                            sys.stderr.write(
+                                file + ":  unknown keyword " + token[0] + ", abort\n"
+                            )
                             sys.exit(1)
                 fd.close()
 
                 base = file.split(".")[0]
-            
+
                 log = None
-                if ( logFile is None ):
-                    log = open(base+".log","w")
-                elif ( logFile=="-" or logFile=="--" ):
+                if logFile is None:
+                    log = open(base + ".log", "w")
+                elif logFile == "-" or logFile == "--":
                     log = sys.stdout
                 else:
-                    log = open(logFile,"w")
-                
-                if ( verbose ):
-                    log.write(str(datetime.datetime.now())+":  "+file+" being processed by pid "+str(pid)+"\n")
+                    log = open(logFile, "w")
+
+                if verbose:
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  "
+                        + file
+                        + " being processed by pid "
+                        + str(pid)
+                        + "\n"
+                    )
                     log.flush()
 
-                if ( dag.getRootNodes() is not None ):
+                if dag.getRootNodes() is not None:
                     # Not sure how to handle log name, if multiple input files are present?
-                    # Current implementation: 
+                    # Current implementation:
                     #       Only allow the custom logname, if single input file submitted.
-                    if ( dumpRescueAndExit ):
+                    if dumpRescueAndExit:
                         dag.writeRescueDAG(log)
-                        dag.writeDotFile(dotFile,base,log,True)
-                    elif ( doSubmit ):
-                        if ( dotFile is not None ):
-                            dag.writeDotFile(dotFile,base,log,False)
+                        dag.writeDotFile(dotFile, base, log, True)
+                    elif doSubmit:
+                        if dotFile is not None:
+                            dag.writeDotFile(dotFile, base, log, False)
                         finish = False
                         for root in dag.getRootNodes():
                             rootnode = dag.getNode(root)
-                            rootnode.submit(dag,log,categories)
+                            rootnode.submit(dag, log, categories)
                             finish = dag.writeRescueDAG(log)
-                            if ( dotFile is not None ):
-                                dag.writeDotFile(dotFile,base,log,False)
+                            if dotFile is not None:
+                                dag.writeDotFile(dotFile, base, log, False)
 
                         # Monitor the DAG and write out rescue DAGs periodically
-                        while ( not dag.isComplete(log) ):
+                        while not dag.isComplete(log):
                             time.sleep(timeout)
                             dag.writeRescueDAG(log)
-                        if ( dotFile is not None ):
-                            dag.writeDotFile(dotFile,base,log,False)
-                                
+                        if dotFile is not None:
+                            dag.writeDotFile(dotFile, base, log, False)
+
                     # last-ditch effort to finish the .DOT file up before exiting, if specified
-                    if ( dotFile is not None ):
-                        dag.writeDotFile(dotFile,base,log,True)
+                    if dotFile is not None:
+                        dag.writeDotFile(dotFile, base, log, True)
                 else:
                     usage()
-   
-                    log.write(str(datetime.datetime.now())+":  processing of "+file+" complete.\n")
+
+                    log.write(
+                        str(datetime.datetime.now())
+                        + ":  processing of "
+                        + file
+                        + " complete.\n"
+                    )
                     log.flush()
                     sys.exit(0)
     # if we get here, we're the parent process, so exit
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

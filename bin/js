@@ -11,8 +11,8 @@
 import getopt
 import os
 import pbsacct
-import re
 import sys
+
 
 def usage():
     sys.stderr.write("Usage:\tjs\t[-h system] [-s dbhost] [-D dbtype]\n")
@@ -30,40 +30,38 @@ dbuser = "pbsacct"
 dbpasswd = "pbsRroxor"
 system = None
 
-db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( "PBSTOOLS_DIR" not in os.environ ):
+db = pbsacct.pbsacctDB(host=dbhost, db=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
+if "PBSTOOLS_DIR" not in os.environ:
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
-cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
-if ( os.path.exists(cfgfile) ):
+cfgfile = os.environ["PBSTOOLS_DIR"] + "/etc/pbsacctdb.cfg"
+if os.path.exists(cfgfile):
     db.readConfigFile(cfgfile)
 
 # command line processing
 try:
-    opts, args = getopt.getopt(sys.argv[1:],
-                                   "D:c:d:h:p:s:t:u:w:",
-                                   [])
+    opts, args = getopt.getopt(sys.argv[1:], "D:c:d:h:p:s:t:u:w:", [])
 except getopt.GetoptError as err:
-    sys.stderr.write(str(err)+"\n")
+    sys.stderr.write(str(err) + "\n")
     usage()
 for opt in opts:
-    if ( opt[0]=="-D" ):
+    if opt[0] == "-D":
         db.setType(opt[1])
-    elif ( opt[0]=="-c" ):
+    elif opt[0] == "-c":
         db.readConfigFile(opt[1])
-    elif ( opt[0]=="-d" ):
+    elif opt[0] == "-d":
         db.setName(opt[1])
-    elif ( opt[0]=="-h" ):
+    elif opt[0] == "-h":
         db.setSystem(opt[1])
-    elif ( opt[0]=="-p" ):
+    elif opt[0] == "-p":
         db.setPassword(opt[1])
-    elif ( opt[0]=="-s" ):
+    elif opt[0] == "-s":
         db.setServerName(opt[1])
-    elif ( opt[0]=="-t" ):
+    elif opt[0] == "-t":
         db.setJobsTable(opt[1])
-    elif ( opt[0]=="-u" ):
+    elif opt[0] == "-u":
         db.setUser(opt[1])
 
-if ( system is None and db.getSystem() is not None ):
+if system is None and db.getSystem() is not None:
     system = db.getSystem()
 else:
     system = "%"
@@ -72,17 +70,21 @@ dbconn = db.connect()
 cursor = dbconn.cursor()
 
 for jobid in args:
-    if ( "." in jobid ):
-        jobid  = jobid.split(".",1)[0]
-    sql = "SELECT script FROM %s WHERE system LIKE '%s' AND jobid LIKE '%s.%%'" % (db.getJobsTable(),system,jobid)
+    if "." in jobid:
+        jobid = jobid.split(".", 1)[0]
+    sql = "SELECT script FROM %s WHERE system LIKE '%s' AND jobid LIKE '%s.%%'" % (
+        db.getJobsTable(),
+        system,
+        jobid,
+    )
     cursor.execute(sql)
     results = cursor.fetchall()
-    if ( len(results)>0 ):
+    if len(results) > 0:
         for result in results:
-            if ( result[0] is not None ):
-                #sys.stdout.write("script for jobid %s\n---------------------------------\n" % jobid)
+            if result[0] is not None:
+                # sys.stdout.write("script for jobid %s\n---------------------------------\n" % jobid)
                 sys.stdout.write(str(result[0]))
-                #sys.stdout.write("\n---------------------------------\n")
+                # sys.stdout.write("\n---------------------------------\n")
             else:
                 sys.stderr.write("No script found for jobid %s\n" % jobid)
     else:

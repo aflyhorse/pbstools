@@ -16,8 +16,8 @@ import getopt
 import logging
 import os
 import pbsacct
-import re
 import sys
+
 
 def usage():
     sys.stderr.write("Usage:\tjobscript-to-db\t[-h system] [-s dbhost] [-D dbtype]\n")
@@ -42,52 +42,50 @@ noop = False
 append_to_jobid_in_db = None
 syslog = False
 
-db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( "PBSTOOLS_DIR" not in os.environ ):
+db = pbsacct.pbsacctDB(host=dbhost, db=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
+if "PBSTOOLS_DIR" not in os.environ:
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
-cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
-if ( os.path.exists(cfgfile) ):
+cfgfile = os.environ["PBSTOOLS_DIR"] + "/etc/pbsacctdb.cfg"
+if os.path.exists(cfgfile):
     db.readConfigFile(cfgfile)
 
 # command line processing
 try:
-    opts, filelist = getopt.getopt(sys.argv[1:],
-                                   "C:D:LTa:c:d:h:lp:s:t:u:w:",
-                                   [])
+    opts, filelist = getopt.getopt(sys.argv[1:], "C:D:LTa:c:d:h:lp:s:t:u:w:", [])
 except getopt.GetoptError as err:
-    sys.stderr.write(str(err)+"\n")
+    sys.stderr.write(str(err) + "\n")
     usage()
 for opt in opts:
-    if ( opt[0]=="-C" ):
+    if opt[0] == "-C":
         db.setConfigTable(opt[1])
-    elif ( opt[0]=="-D" ):
+    elif opt[0] == "-D":
         db.setType(opt[1])
-    elif ( opt[0]=="-L" ):
+    elif opt[0] == "-L":
         syslog = True
-    elif ( opt[0]=="-T" ):
+    elif opt[0] == "-T":
         noop = True
-    elif ( opt[0]=="-a" ):
+    elif opt[0] == "-a":
         append_to_jobid_in_db = opt[1]
-    elif ( opt[0]=="-c" ):
+    elif opt[0] == "-c":
         db.readConfigFile(opt[1])
-    elif ( opt[0]=="-d" ):
+    elif opt[0] == "-d":
         db.setName(opt[1])
-    elif ( opt[0]=="-h" ):
+    elif opt[0] == "-h":
         db.setSystem(opt[1])
-    elif ( opt[0]=="-l" ):
+    elif opt[0] == "-l":
         syslog = False
-    elif ( opt[0]=="-p" ):
+    elif opt[0] == "-p":
         db.setPassword(opt[1])
-    elif ( opt[0]=="-s" ):
+    elif opt[0] == "-s":
         db.setServerName(opt[1])
-    elif ( opt[0]=="-t" ):
+    elif opt[0] == "-t":
         db.setJobsTable(opt[1])
-    elif ( opt[0]=="-u" ):
+    elif opt[0] == "-u":
         db.setUser(opt[1])
-    elif ( opt[0]=="-w" ):
+    elif opt[0] == "-w":
         db.setSoftwareTable(opt[1])
 
-if ( system is None and db.getSystem() is not None ):
+if system is None and db.getSystem() is not None:
     system = db.getSystem()
 else:
     system = "%"
@@ -95,14 +93,14 @@ else:
 # configure logging
 logger = pbsacct.getLogger()
 
-if ( noop ):
+if noop:
     logger.setLevel(logging.INFO)
 else:
     logger.setLevel(logging.WARNING)
 lh = logging.StreamHandler(sys.stderr)
-if ( syslog ):
-    lh = logging.handlers.SysLogHandler(address='/dev/log')
-lh.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s'))
+if syslog:
+    lh = logging.handlers.SysLogHandler(address="/dev/log")
+lh.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s"))
 logger.addHandler(lh)
 
 # connect to DB
@@ -110,24 +108,31 @@ dbconn = db.connect()
 cursor = dbconn.cursor()
 
 for scriptfile in filelist:
-    if ( os.path.exists(scriptfile) and os.access(scriptfile,os.R_OK) ):
+    if os.path.exists(scriptfile) and os.access(scriptfile, os.R_OK):
         jobid = os.path.basename(scriptfile).rstrip(".SC")
-        if ( append_to_jobid_in_db is not None ):
-            jobid = jobid+append_to_jobid_in_db
+        if append_to_jobid_in_db is not None:
+            jobid = jobid + append_to_jobid_in_db
         scriptfp = open(scriptfile)
         script = "".join(scriptfp.readlines())
         scriptfp.close()
-        if ( db.job_exists(jobid) ):
-            sql = "UPDATE "+db.getJobsTable()+" SET script=%s WHERE system LIKE %s AND jobid=%s;"
+        if db.job_exists(jobid):
+            sql = (
+                "UPDATE "
+                + db.getJobsTable()
+                + " SET script=%s WHERE system LIKE %s AND jobid=%s;"
+            )
         else:
-            sql = "INSERT INTO "+db.getJobsTable()+" (script,system,jobid) VALUES (%s,%s,%s);"
-        if ( noop ):
-            logger.info("%s (%s,%s,%s)" % (sql,script,system,jobid))
+            sql = (
+                "INSERT INTO "
+                + db.getJobsTable()
+                + " (script,system,jobid) VALUES (%s,%s,%s);"
+            )
+        if noop:
+            logger.info("%s (%s,%s,%s)" % (sql, script, system, jobid))
         else:
             try:
-                cursor.execute(sql,(script,system,jobid))
+                cursor.execute(sql, (script, system, jobid))
                 dbconn.commit()
             except Exception as e:
                 logger.debug("%s" % sql)
                 logger.error(str(e))
-
