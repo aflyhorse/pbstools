@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # sw_app-index -- Update values for sw_app indexing
 # Python rewrite
@@ -941,7 +941,7 @@ indexhack = False
 syslog = False
 
 db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( not os.environ.has_key("PBSTOOLS_DIR") ):
+if ( "PBSTOOLS_DIR" not in os.environ ):
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
 cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
 if ( os.path.exists(cfgfile) ):
@@ -953,7 +953,7 @@ try:
                                    "C:D:E:FHILMTP:S::a:c:d:h:lp:s:t:u:w:",
                                    ["help",
                                     "list"])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:
@@ -1025,9 +1025,9 @@ if ( listmode ):
     # list all the package rules and exit
     for pkg in pkglist:
         if ( pkg in pkgmatch ):
-            print "%s = \"%s\"" % (pkg,pkgmatch[pkg])
+            print("%s = \"%s\"" % (pkg,pkgmatch[pkg]))
         else:
-            print "%s = UNKNOWN" % (pkg)
+            print("%s = UNKNOWN" % (pkg))
     sys.exit(0)
 
 # connect to DB
@@ -1058,7 +1058,7 @@ if ( domultimatch ):
                 results = cursor.fetchall()
                 for result in results:
                     if ( result[2]>0 ):
-                        print "%-12s\t%-12s\t%d" % result
+                        print("%-12s\t%-12s\t%d" % result)
                 done[pkg1+":"+pkg2] = True
                 done[pkg2+":"+pkg1] = True
 else:

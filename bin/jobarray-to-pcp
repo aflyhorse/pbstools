@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # jobarray-to-pcp:  Run the equivalent of a TORQUE job array using
 #                   parallel-command-processor.
@@ -74,7 +74,7 @@ def parse_args(arglist,request):
     opts, args = getopt.getopt(arglist,
                                "A:C:IM:N:P:S:T:VW:Xa:b:c:d:e:fhj:k:l:m:no:p:q:r:t:u:v:w:xz",
                                ["help","tasks-per-node=","test","tpn="])
-  except getopt.GetoptError, err:
+  except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
   for opt in opts:

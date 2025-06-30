@@ -1,2 +1,4 @@
 pkg/*
 !pkg/.keep
+
+__pycache__

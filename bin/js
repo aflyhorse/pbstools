@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # js -- Retrieve a job script from the pbsacct DB.
 # Python rewrite
@@ -31,7 +31,7 @@ dbpasswd = "pbsRroxor"
 system = None
 
 db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( not os.environ.has_key("PBSTOOLS_DIR") ):
+if ( "PBSTOOLS_DIR" not in os.environ ):
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
 cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
 if ( os.path.exists(cfgfile) ):
@@ -42,7 +42,7 @@ try:
     opts, args = getopt.getopt(sys.argv[1:],
                                    "D:c:d:h:p:s:t:u:w:",
                                    [])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:

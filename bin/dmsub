@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # dmsub:  Submit a data movement job using a variety of methods.
 # Copyright 2009,2014 University of Tennessee
@@ -146,7 +146,7 @@ class TransferList(object):
             
     def getDestURL(self,src):
         dest = None
-        if ( self._destlist is not None and self._destlist.has_key(src) ):
+        if ( self._destlist is not None and src in self._destlist ):
             dest = self._destlist[src]
         return dest
 
@@ -317,8 +317,8 @@ class ScheduledDataTransfer(object):
             elif ( self._desctype=="stork" ):
                 list = self._readStorkXferList(fd)
             fd.close()
-        except IOError,msg:
-            raise IOError,msg
+        except IOError as msg:
+            raise IOError(msg)
         self._needupdate = False
         self._cachedlist = list
         return list
@@ -478,7 +478,7 @@ class ScheduledDataTransfer(object):
                     fd.write("    alt_protocols = \""+str(list.getOption("alt_protocols"))+"\";\n")
                 fd.write("]\n")
         else:
-            raise RuntimeError,"invalid description type \""+type+"\""
+            raise RuntimeError("invalid description type \""+type+"\"")
         fd.close()
 
     def _doCredCache(self,proxy):
@@ -487,10 +487,10 @@ class ScheduledDataTransfer(object):
             # data mover nodes on which the job will run
             cachedir = os.environ["HOME"]+"/.credcache"
             if ( not os.path.exists(cachedir) ):
-                os.mkdir(cachedir,0700)
+                os.mkdir(cachedir,0o700)
             newcred = cachedir+"/"+str(uuid.uuid1())
             shutil.copyfile(os.environ["X509_USER_PROXY"],newcred)
-            os.chmod(newcred,0600)
+            os.chmod(newcred,0o600)
             if ( debug ):
                 sys.stderr.write("caching credential "+proxy+" as "+newcred+"\n")
             return newcred
@@ -515,7 +515,7 @@ class ScheduledDataTransfer(object):
         jobid = None
         epilogue = ""
         if ( self.getMoverType()=="stork" or self.getMoverType()=="rft" ):
-            raise RuntimeError, "mover type \""+self.getMoverType()+"\" is incompatible with PBS"
+            raise RuntimeError("mover type \""+self.getMoverType()+"\" is incompatible with PBS")
         if ( debug ):
             sys.stderr.write("mover="+self.getMoverType()+"\n")
         if ( dosubmit ):
@@ -624,7 +624,7 @@ class ScheduledDataTransfer(object):
                 for line in stderr:
                     sys.stderr.write(line)
                     sys.stderr.flush()
-        except IndexError, err:
+        except IndexError as err:
             sys.stderr.write(str(err) + "\n")
             sys.stderr.flush()
         pout.close()
@@ -879,7 +879,7 @@ def read_cfg(file):
     global pbs_prologue
     global credcache
     if ( not os.path.exists(file) ):
-        raise IOError,file+" does not exist"
+        raise IOError(file+" does not exist")
     elif ( not os.path.isfile(file) ):
         raise IOError("Config \"file\" "+file+" is not actually a file")
     else:
@@ -950,7 +950,7 @@ try:
                                 "server=",
                                 "streams=",
                                 "vars="])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 

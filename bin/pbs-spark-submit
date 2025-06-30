@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # pbs-spark-submit:  Run an Apache Spark "job" (including optionally
 #                    starting the Spark services) inside a PBS job.
@@ -92,12 +92,12 @@ class ExecLauncher(Launcher):
             if ( cpus==0 and "PBS_NP" in os.environ.keys() ):
                 try:
                     cpus = int(os.environ["PBS_NP"])
-                except e,Exception:
+                except Exception as e:
                     pass
             elif ( cpus==0 and "PBS_NUM_PPN" in os.environ.keys() ):
                 try:
                     cpus = int(os.environ["PBS_NUM_PPN"])
-                except e,Exception:
+                except Exception as e:
                     pass
         if ( cpus>0 ):
             os.environ["SPARK_WORKER_CORES"] = str(cpus)

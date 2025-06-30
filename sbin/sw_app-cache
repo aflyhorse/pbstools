@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 import getopt
 import logging
 import pbsacct
@@ -23,7 +23,7 @@ indexhack = False
 syslog = False
 
 db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( not os.environ.has_key("PBSTOOLS_DIR") ):
+if ( "PBSTOOLS_DIR" not in os.environ ):
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
 cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
 if ( os.path.exists(cfgfile) ):
@@ -34,7 +34,7 @@ try:
     opts, args = getopt.getopt(sys.argv[1:],
                                "E:ILS:Tc:d:h:lp:s:t:u:w:",
                                [])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:
@@ -104,7 +104,7 @@ try:
         packages_in_jobs.append(row[0])
 except KeyboardInterrupt:
     raise
-except Error, e:
+except Exception as e:
     log.error("Package select from "+db.getJobsTable()+":  "+str(e))
     sys.exit(2)
 if ( noop ):
@@ -118,10 +118,10 @@ try:
         packages_in_cache.append(row[0])
 except KeyboardInterrupt:
     raise
-except MySQLdb.Error, e:
-    logger.error("MySQL error %d: %s" % (e.args[0],e.args[1]))
+except Exception as e:
+    logger.error("MySQL error: "+str(e))
     sys.exit(1)
-except Error, e:
+except Exception as e:
     logger.error("Unknown error in package select from "+db.getSoftwareTable()+":  "+str(e))
     sys.exit(2)
 if ( noop ):
@@ -140,7 +140,7 @@ for pkg in packages_in_jobs:
                 dbconn.commit()
             except KeyboardInterrupt:
                 raise
-            except Error, e:
+            except Exception as e:
                 if dbconn:
                     dbconn.rollback()
                 logger.error("Error in insert of "+pkg+" into "+db.getSoftwareTable()+":  "+str(e))

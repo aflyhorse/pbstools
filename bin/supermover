@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # supermover -- wrapper around a number of data movement tools
 # Copyright 2009, 2011, 2013 University of Tennessee
@@ -228,7 +228,7 @@ try:
     opts, args = getopt.getopt(sys.argv[1:],
                                "c:df:hl:",
                                ["config=s","debug","file=s","help","log=s"])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n\n")
     methods = get_methods(cfgfile)
     usage(methods)
@@ -251,7 +251,8 @@ if ( not show_usage ):
             logfile = opt[1]
             try:
                 log = open(logfile,'w')
-            except IOError, (errno, strerror):
+            except IOError as e:
+                errno, strerror = e.args
                 sys.stderr.write("Can't open "+logfile+" for writing:  "+strerror+" (errno="+str(errno)+")\n")
                 pass          
 

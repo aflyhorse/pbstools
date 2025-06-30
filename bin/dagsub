@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # dagsub:  Submit one or more directed acyclic graphs of jobs to TORQUE
 #          using a language compatible with Condor DAGman.
 #
@@ -257,10 +257,10 @@ class JobNode(object):
         self._noretrystatus = 0
         self._category = None
         if ( not os.path.exists(script) ):
-            raise IOError, "File "+script+" not found"
+            raise IOError("File "+script+" not found")
 
-    def __cmp__(self, other):
-        return cmp(other._priority, self._priority)
+    def __lt__(self, other):
+        return self._priority < other._priority
 
     def addChild(self,child):
         if ( self._children is None ):
@@ -535,7 +535,7 @@ class JobNode(object):
                         log.write(str(datetime.datetime.now())+":  "+line)
                     log.flush()
                     pout.close()
-                except IndexError, err:
+                except IndexError as err:
                     log.write(str(datetime.datetime.now())+":  "+str(err)+"\n")
                     log.flush()
                 stderr = perr.readlines()
@@ -597,7 +597,7 @@ class JobNode(object):
             log.flush()
             exit_status = os.system(cmd)
             if ( exit_status!=0 ):
-                raise RuntimeError,self.name()+": preScript failed"
+                raise RuntimeError(self.name()+": preScript failed")
             self.setPreScriptHasRun(True)
         return True
 
@@ -613,7 +613,7 @@ class JobNode(object):
             log.flush()
             exit_status = os.system(cmd)
             if ( exit_status!=0 ):
-                raise RuntimeError,self.name()+": postScript failed"
+                raise RuntimeError(self.name()+": postScript failed")
             self.setPostScriptHasRun(True)
             
         # dump out a rescue DAG just in case
@@ -735,7 +735,7 @@ class JobNode(object):
                         log.write(str(datetime.datetime.now())+":  "+line)
                     log.flush()
                     pout.close()
-                except IndexError, err:
+                except IndexError as err:
                     if(verbose):
                         sys.stderr.write(str(err) + "\n") 
                 perr.close()
@@ -1024,7 +1024,7 @@ class DataJobNode(JobNode):
                     for line in stderr:
                         log.write(str(datetime.datetime.now())+":  "+line)
                         log.flush()
-                except IndexError, err:
+                except IndexError as err:
                     if(verbose):
                         sys.stderr.write(str(err) + "\n") 
                 pout.close()
@@ -1141,7 +1141,7 @@ class DAG(object):
             log.flush()
         file = self.fileName()
         if ( file=="-" or file=="--" ):
-            raise RuntimeException,"Cannot reread stdin to create rescue DAG"
+            raise RuntimeError("Cannot reread stdin to create rescue DAG")
         if ( os.path.exists(file+".rescue") and not os.path.exists(file+".rescue.lck") and 
              os.stat(file).st_mtime<os.stat(file+".rescue").st_mtime ):
             oldRescueDAG = open(file+".rescue", 'r')
@@ -1195,7 +1195,7 @@ class DAG(object):
                         log.write(str(datetime.datetime.now())+":  node "+nodename+
                                   " is None while writing rescue DAG\n")
                         log.flush()
-                except AttributeError, err:
+                except AttributeError as err:
                     log.write(str(datetime.datetime.now())+": "+str(err)+'\n')
                     log.flush()
             else:
@@ -1320,7 +1320,7 @@ def main():
                                     "outfile_dir=",
                                     "maxjobwait=",
                                     "timeout="])
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
         sys.stderr.write(str(err)+"\n")
         usage()
         sys.exit(1)
@@ -1357,7 +1357,7 @@ def main():
                     timeout = int(value)
                 except:
                     sys.stderr.warn("Unable to interpret timeout value \"%s\", ignoring.\n" % str(value))
-    except NameError, err:
+    except NameError as err:
         sys.stderr.write(str(err)+"\n")
         usage()
         sys.exit(0)
@@ -1372,12 +1372,12 @@ def main():
         # things like retries without running an additional daemon/service.
         rescue_file = file + ".rescue"
         if (os.path.exists(rescue_file)):
-            print "Rescue Dag found ..."
-            print "Please do ONE of the following: "
-            print "1. Remove "+ rescue_file + " and submit using "+ file
-            print "\t\t OR"
-            print "2. Submit using " + rescue_file
-            print "Exiting"
+            print("Rescue Dag found ...")
+            print("Please do ONE of the following: ")
+            print("1. Remove "+ rescue_file + " and submit using "+ file)
+            print("\t\t OR")
+            print("2. Submit using " + rescue_file)
+            print("Exiting")
             sys.exit(1)
         
         if ( doFork ):
@@ -1417,7 +1417,7 @@ def main():
                                     node.setScript(" -d " + token[4])
                                     if(token[5] == "DONE"):
                                         node.setDone(True)
-                            except IndexError, err:
+                            except IndexError as err:
                                 pass
                             dag.addNode(node)
                         elif ( token[0]=="DATA" ):
@@ -1432,7 +1432,7 @@ def main():
                                         node.setMover(token[i+1])
                                     elif ( token[i]=="QUEUE" ):
                                         node.setQueue(token[i+1])
-                            except IndexError, err:
+                            except IndexError as err:
                                 pass
                             dag.addNode(node)
                         elif ( token[0]=="SUBDAG" ):
@@ -1440,7 +1440,7 @@ def main():
                             try:
                                 if ( len(token)>4 and token[4]=="DONE" ):
                                     node.setDone(True)
-                            except IndexError, err:
+                            except IndexError as err:
                                 pass
                             dag.addNode(node)
                         elif ( token[0]=="PARENT" ):

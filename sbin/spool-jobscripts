@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # spool-jobscripts -- copy newly created job scripts to a spool directory
 # Python rewrite
@@ -35,7 +35,7 @@ try:
     opts, args = getopt.getopt(sys.argv[1:],
                                    "Ta:d:hs:",
                                    [])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:
@@ -59,7 +59,7 @@ else:
     os.chdir(jobsdir)
 
 if ( not os.path.exists(spooldir) ):
-    os.mkdir(spooldir,0700)
+    os.mkdir(spooldir,0o700)
 
 # get list of script files
 srcfiles = []

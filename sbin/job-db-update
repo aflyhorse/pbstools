@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # job-db-update -- Insert job records into a MySQL DB
 # Python rewrite
@@ -53,7 +53,7 @@ syslog = False
 append_to_jobid_in_db = None
 
 db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( not os.environ.has_key("PBSTOOLS_DIR") ):
+if ( "PBSTOOLS_DIR" not in os.environ ):
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
 cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
 if ( os.path.exists(cfgfile) ):
@@ -64,7 +64,7 @@ try:
     opts, filelist = getopt.getopt(sys.argv[1:],
                                    "C:D:LTa:c:d:h:lp:qs:t:u:w:",
                                    [])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:
@@ -126,7 +126,7 @@ cursor = dbconn.cursor()
 if ( len(filelist)>0 ):
     jobs = pbsacct.jobs_from_files(filelist,system)
     
-    for jobid in sorted(jobs,key=lambda jobid:jobs[jobid].end_ts):
+    for jobid in sorted(jobs,key=lambda jobid:jobs[jobid].end_ts()):
         # in some versions of TORQUE, jobs that are deleted before they start
         # will be reported as in the E state with an end time (when it was
         # qdel'ed) but no start time, so just checking for the E state is not

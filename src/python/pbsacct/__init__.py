@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # This module provides functions for parsing PBS accounting logs for use by 
 # various scripts
 #
@@ -741,6 +741,10 @@ def raw_data_from_file(filename):
         except ValueError:
             print("ERROR:  Invalid number of fields (requires 4).  Unable to parse entry: %s" % (str(line.split(";",3))))
             continue
+
+        # skip license line
+        if jobid == "license":
+            continue
         
         # Create a dict for the various resources
         resources_dict = dict()
@@ -1120,7 +1124,15 @@ class pbsacctDB:
         if ( self._dbhandle is not None ):
             return self._dbhandle
         if ( self.getType()=="mysql" ):
-            import MySQLdb
+            try:
+                import MySQLdb
+            except ImportError:
+                try:
+                    import pymysql
+                    pymysql.install_as_MySQLdb()
+                    import MySQLdb
+                except ImportError:
+                    raise ImportError("MySQL Python library not found. Install python3-mysqlclient or PyMySQL")
             self._dbhandle = MySQLdb.connect(host=self._dbhost,
                                              db=self._dbname,
                                              user=self._dbuser,

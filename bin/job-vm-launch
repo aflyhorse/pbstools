@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # job-vm-launch:  Launch a VM image inside a PBS job
 # Copyright 2013, 2014, University of Tennessee
@@ -268,7 +268,7 @@ try:
     opts, args = getopt.getopt(sys.argv[1:],
                                "B:Cc:dF:f:hL:l:m:Nn:o:r:t:w:",
                                ["arch=","boot=","cdrom=","clone-image","connect=","cpu=","debug","disk=","disk-bus=s","disk-format=","file=","floppy=","graphics=","help","image=","keep-clone","keep-guest","location=","log=","mac=","name=","network=","no-block","os-type=","os-variant=","ram=","validate-xml","vcpus=","vm-type="])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n\n")
     usage(-1)
 if opts == [] and args == []:
@@ -293,7 +293,8 @@ if ( not show_usage ):
             logfile = opt[1]
             try:
                 log = open(logfile,'w')
-            except IOError, (errno, strerror):
+            except IOError as e:
+                errno, strerror = e.args
                 sys.stderr.write("Can't open "+logfile+" for writing:  "+strerror+" (errno="+str(errno)+")\n")
                 pass
         if ( opt[0]=="-l" or opt[0]=="--location" ):

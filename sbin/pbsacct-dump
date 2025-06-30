@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # pbsacct-dump -- Dump records from pbsacct DB into CSV format
 # Copyright 2016 Ohio Supercomputer Center
@@ -16,9 +16,18 @@
 # $Date$
 
 import getopt
-import MySQLdb
-import os
 import sys
+try:
+    import MySQLdb
+except ImportError:
+    try:
+        import pymysql
+        pymysql.install_as_MySQLdb()
+        import MySQLdb
+    except ImportError:
+        print("Error: MySQL Python library not found. Install python3-mysqlclient or PyMySQL", file=sys.stderr)
+        sys.exit(1)
+import os
 
 def usage():
     sys.stderr.write("Usage:  pbsacct-dump [-s dbserver] [-d dbname] [-t dbtable ]\n")
@@ -45,7 +54,7 @@ try:
     opts, args = getopt.getopt(sys.argv[1:],
                                "E:S:d:h:p:s:t:u:",
                                [])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:

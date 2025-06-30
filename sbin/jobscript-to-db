@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # jobscript-to-db -- copy newly spooled job scripts into database
 # Python rewrite
@@ -43,7 +43,7 @@ append_to_jobid_in_db = None
 syslog = False
 
 db = pbsacct.pbsacctDB(host=dbhost,db=dbname,dbuser=dbuser,dbpasswd=dbpasswd)
-if ( not os.environ.has_key("PBSTOOLS_DIR") ):
+if ( "PBSTOOLS_DIR" not in os.environ ):
     os.environ["PBSTOOLS_DIR"] = "/usr/local"
 cfgfile = os.environ["PBSTOOLS_DIR"]+"/etc/pbsacctdb.cfg"
 if ( os.path.exists(cfgfile) ):
@@ -54,7 +54,7 @@ try:
     opts, filelist = getopt.getopt(sys.argv[1:],
                                    "C:D:LTa:c:d:h:lp:s:t:u:w:",
                                    [])
-except getopt.GetoptError, err:
+except getopt.GetoptError as err:
     sys.stderr.write(str(err)+"\n")
     usage()
 for opt in opts:
